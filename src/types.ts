@@ -52,11 +52,16 @@ export interface TestExecutionResult {
   evaluatedAt: string;
 }
 
+/**
+ * 7-Stage Declared Lifecycle Event Types (Section 9.2)
+ */
 export type EventType =
   | 'run.started'
+  | 'manifest.captured'
   | 'test.started'
   | 'test.completed'
   | 'policy.decision'
+  | 'checkpoint.signed'
   | 'run.completed';
 
 export interface EvidenceEvent {
@@ -81,6 +86,7 @@ export interface ChainVerificationReport {
   expectedHash?: string;
   actualHash?: string;
   missingEvents?: string[];
+  signatureValid?: boolean;
 }
 
 export interface GateEvaluationResult {
@@ -91,4 +97,84 @@ export interface GateEvaluationResult {
   reasons: string[];
   requiredTests: TestId[];
   ticketId?: string;
+}
+
+/**
+ * Decoupled Status Fields Schema (Section 4.3)
+ */
+export type ConfigurationStatus = 'BASELINE' | 'DRIFTED' | 'REMEDIATED';
+export type PolicyTestStatus = 'PASS' | 'FAIL' | 'PENDING';
+export type EvidenceIntegrityStatus = 'VALID' | 'TAMPERED' | 'UNCHECKED';
+export type EvidenceCompletenessStatus = 'COMPLETE' | 'INCOMPLETE' | 'UNCHECKED';
+
+export interface DecoupledAssuranceSnapshot {
+  run_id: string;
+  environment_id: string;
+  manifest_digest: string;
+  configuration_status: ConfigurationStatus;
+  policy_test_status: PolicyTestStatus;
+  evidence_integrity_status: EvidenceIntegrityStatus;
+  evidence_completeness_status: EvidenceCompletenessStatus;
+  assurance_state: AssuranceState;
+  drift_details: {
+    affected_guarantees: GuaranteeId[];
+    required_retests: TestId[];
+  };
+  gate_evaluation: {
+    decision: 'GRANTED' | 'DENIED';
+    reasons: string[];
+    required_retests: TestId[];
+    ticket_id?: string;
+    issued_at?: string;
+  };
+}
+
+/**
+ * Canonical Environment Manifest (Section 8.1)
+ */
+export interface CanonicalManifest {
+  manifest_schema: string;
+  runtime: {
+    name: string;
+    version: string;
+  };
+  policy_bundle_version: string;
+  test_suite_version: string;
+  threat_model_version: string;
+  security_relevant_config: {
+    gatewaySessionIsolation: string;
+    hardeningFlags: HardeningFlags;
+    redMounts: string[];
+    redNetworks: string[];
+    storageApiAuthz: string;
+  };
+  configuration_digest: string;
+  runtime_observation_digest: string;
+}
+
+/**
+ * Benchmark & Evaluation Metrics (Section 18.1)
+ */
+export interface BenchmarkMetrics {
+  mutationDetectionRate: number; // D (Target: 100%)
+  falsePositiveRate: number; // FPR (Target: 0.0%)
+  selectiveRetestReduction: number; // R (Target: > 70%)
+  fullRunDurationMs: number;
+  selectiveRunDurationMs: number;
+  timeToDetectMs: number | null; // TTD
+  recoveryLatencyMs: number | null; // T_rec
+  lastMutationApplied: string | null;
+}
+
+/**
+ * Checkpoint Signature Package (Section 3.1 & 9.2)
+ */
+export interface SignedCheckpoint {
+  checkpoint_id: string;
+  run_id: string;
+  root_event_hash: string;
+  timestamp: string;
+  key_id: string;
+  signature: string;
+  algorithm: string;
 }

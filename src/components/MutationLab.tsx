@@ -8,6 +8,10 @@ import {
   ArrowRight,
   Container,
   SlidersHorizontal,
+  CheckCircle2,
+  AlertTriangle,
+  Server,
+  Layers,
 } from 'lucide-react';
 import type { SimulatedConfig, GuaranteeId, TestId } from '../types';
 
@@ -23,7 +27,7 @@ interface ConfigDiffItem {
 interface MutationLabProps {
   config: SimulatedConfig;
   baselineConfig: SimulatedConfig;
-  onApplyMutation: (type: 'M1' | 'M2' | 'M3' | 'M4' | 'B1' | 'REMEDIATE') => void;
+  onApplyMutation: (type: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'B1' | 'REMEDIATE') => void;
   isRunning: boolean;
   affectedGuarantees: string[];
 }
@@ -88,6 +92,22 @@ export const MutationLab: React.FC<MutationLabProps> = ({
     });
   }
 
+  // M5: hardeningFlags
+  const isHardeningDrifted =
+    !config.hardeningFlags.readOnlyRoot ||
+    !config.hardeningFlags.dropCapabilities.includes('ALL') ||
+    !config.hardeningFlags.noNewPrivileges;
+  if (isHardeningDrifted) {
+    diffs.push({
+      field: 'hardeningFlags',
+      previousValue: 'readOnlyRoot=true, dropCaps=[ALL]',
+      currentValue: `readOnlyRoot=${config.hardeningFlags.readOnlyRoot}, dropCaps=[${config.hardeningFlags.dropCapabilities.join(', ')}]`,
+      affectedGuarantee: 'G5',
+      affectedTest: 'T05',
+      isBenign: false,
+    });
+  }
+
   // B1: labels check
   const labelKeys = Object.keys(config.labels);
   const baselineLabelKeys = Object.keys(baselineConfig.labels);
@@ -110,6 +130,7 @@ export const MutationLab: React.FC<MutationLabProps> = ({
   const isM2Active = config.redMounts.some((m) => m.includes('blue'));
   const isM3Active = config.redNetworks.some((n) => n.includes('blue'));
   const isM4Active = config.gatewaySessionIsolation === 'shared';
+  const isM5Active = isHardeningDrifted;
 
   return (
     <div className="bg-[#0e1320] rounded-lg border border-slate-800 shadow-sm overflow-hidden">
@@ -119,11 +140,11 @@ export const MutationLab: React.FC<MutationLabProps> = ({
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-sky-400" />
             <h2 className="text-sm font-semibold text-slate-100">
-              Infrastructure Mutation & Configuration Drift Simulator
+              Infrastructure Mutation & Configuration Drift Simulator (Section 12)
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Inject synthetic perimeter degradation scenarios to test Sentinel's continuous drift mapping and fail-closed gate.
+            Inject synthetic perimeter degradation scenarios to test Sentinel's continuous drift mapping, selective retesting, and negative controls.
           </p>
         </div>
 
@@ -141,10 +162,10 @@ export const MutationLab: React.FC<MutationLabProps> = ({
         {/* Simulation Buttons Grid */}
         <div>
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-2">
-            Simulate Security Posture Events:
+            Predefined Reversible Mutation Benchmark (M1–M5 & B1):
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5">
             {/* M1 */}
             <button
               onClick={() => onApplyMutation('M1')}
@@ -241,7 +262,31 @@ export const MutationLab: React.FC<MutationLabProps> = ({
               </div>
             </button>
 
-            {/* B1 Benign */}
+            {/* M5 */}
+            <button
+              onClick={() => onApplyMutation('M5')}
+              disabled={isRunning}
+              className={`p-3 rounded-md border text-left transition flex flex-col justify-between ${
+                isM5Active
+                  ? 'bg-rose-950/30 border-rose-600/50 text-rose-200'
+                  : 'bg-[#090d16] border-slate-800 hover:border-slate-700 text-slate-300'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between text-xs font-mono font-semibold mb-1">
+                  <span className={isM5Active ? 'text-rose-400' : 'text-slate-200'}>M5: Hardening Drop</span>
+                  <Container className={`w-3.5 h-3.5 ${isM5Active ? 'text-rose-400' : 'text-slate-500'}`} />
+                </div>
+                <p className="text-[11px] text-slate-400 leading-snug">
+                  Disable read-only rootfs and retain excess Linux capabilities.
+                </p>
+              </div>
+              <div className="text-[10px] font-mono text-sky-400 mt-2 font-medium">
+                Invalidates: G5 → T05
+              </div>
+            </button>
+
+            {/* B1 Benign Negative Control */}
             <button
               onClick={() => onApplyMutation('B1')}
               disabled={isRunning}
@@ -253,159 +298,168 @@ export const MutationLab: React.FC<MutationLabProps> = ({
                   <Tag className="w-3.5 h-3.5 text-emerald-400" />
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  Modify harmless non-security label (e.g. audit session annotation).
+                  Negative control: update non-security audit labels. Fingerprint invariant.
                 </p>
               </div>
               <div className="text-[10px] font-mono text-emerald-400 mt-2 font-medium">
-                Zero Drift · Invariant Hash
+                Invariant · FPR: 0.0%
               </div>
             </button>
           </div>
         </div>
 
-        {/* Live Container Topologies */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Red Container */}
-          <div className="p-3.5 rounded-md bg-[#090d16] border border-slate-800 text-xs font-mono">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
-              <span className="flex items-center gap-1.5 font-bold text-rose-300">
-                <Container className="w-3.5 h-3.5" />
-                Runner: Role [Red]
+        {/* Visual Container Roles & Topologies */}
+        <div className="border border-slate-800 rounded-lg p-3.5 bg-[#090d16]">
+          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-sky-400" />
+              Active Container Boundaries & Role Topologies:
+            </span>
+            {affectedGuarantees.length > 0 && (
+              <span className="text-amber-400 font-mono text-[10px] font-bold">
+                Drifted: [{affectedGuarantees.join(', ')}]
               </span>
-              <span className="text-[10px] text-rose-400 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-900">
-                Adversary Harness
-              </span>
-            </div>
-            <div className="space-y-1.5 text-[11px]">
-              <div>
-                <span className="text-slate-500">volumeMounts:</span>{' '}
-                <span className={isM2Active ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                  {config.redMounts.join(', ')}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500">networks:</span>{' '}
-                <span className={isM3Active ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                  {config.redNetworks.join(', ')}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500">securityContext:</span>{' '}
-                <span className="text-slate-300">readOnlyRoot={String(config.hardeningFlags.readOnlyRoot)}</span>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Blue Container */}
-          <div className="p-3.5 rounded-md bg-[#090d16] border border-slate-800 text-xs font-mono">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
-              <span className="flex items-center gap-1.5 font-bold text-sky-300">
-                <Container className="w-3.5 h-3.5" />
-                Control Plane: Role [Blue]
-              </span>
-              <span className="text-[10px] text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded border border-sky-900">
-                Trusted Plane
-              </span>
-            </div>
-            <div className="space-y-1.5 text-[11px]">
-              <div>
-                <span className="text-slate-500">storageVolume:</span>{' '}
-                <span className="text-slate-300">/opt/blue/data</span>
-              </div>
-              <div>
-                <span className="text-slate-500">privateSubnet:</span>{' '}
-                <span className="text-slate-300">blue-private-net</span>
-              </div>
-              <div>
-                <span className="text-slate-500">storageApiAuthz:</span>{' '}
-                <span className={isM1Active ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
-                  {config.storageApiAuthz.toUpperCase()}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Red Container */}
+            <div
+              className={`p-3 rounded border font-mono text-xs ${
+                isM2Active || isM3Active
+                  ? 'bg-rose-950/20 border-rose-500/40 text-rose-200'
+                  : 'bg-[#0b101c] border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Container className="w-3.5 h-3.5 text-rose-400" />
+                  Red-Team Runner (Untrusted)
+                </span>
+                <span className="text-[10px] px-1 rounded bg-slate-900 border border-slate-800">
+                  sandbox-cgroup
                 </span>
               </div>
+              <div className="space-y-1 text-[11px] text-slate-400">
+                <div>
+                  Mounts:{' '}
+                  <span className={isM2Active ? 'text-rose-400 font-bold' : 'text-slate-200'}>
+                    [{config.redMounts.join(', ')}]
+                  </span>
+                </div>
+                <div>
+                  Networks:{' '}
+                  <span className={isM3Active ? 'text-rose-400 font-bold' : 'text-slate-200'}>
+                    [{config.redNetworks.join(', ')}]
+                  </span>
+                </div>
+                <div>RootFS: readOnlyRoot={config.hardeningFlags.readOnlyRoot ? 'true' : 'false'}</div>
+              </div>
             </div>
-          </div>
 
-          {/* Model Gateway */}
-          <div className="p-3.5 rounded-md bg-[#090d16] border border-slate-800 text-xs font-mono">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
-              <span className="flex items-center gap-1.5 font-bold text-slate-200">
-                <Bot className="w-3.5 h-3.5 text-sky-400" />
-                Proxy: Model Gateway
-              </span>
-              <span className="text-[10px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
-                Inference Proxy
-              </span>
-            </div>
-            <div className="space-y-1.5 text-[11px]">
-              <div>
-                <span className="text-slate-500">sessionCacheMode:</span>{' '}
-                <span className={isM4Active ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
-                  {config.gatewaySessionIsolation.toUpperCase()}
+            {/* Blue Container */}
+            <div className="p-3 rounded border font-mono text-xs bg-[#0b101c] border-slate-800 text-slate-300">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Server className="w-3.5 h-3.5 text-sky-400" />
+                  Blue-Team Control (Protected)
+                </span>
+                <span className="text-[10px] px-1 rounded bg-slate-900 border border-slate-800">
+                  ground-truth
                 </span>
               </div>
-              <div>
-                <span className="text-slate-500">canaryToken:</span>{' '}
-                <span className="text-slate-300">CANARY-7X9B-VAL</span>
+              <div className="space-y-1 text-[11px] text-slate-400">
+                <div>Volume: /opt/blue/data (Private Rubrics)</div>
+                <div>Network: blue-private-net (Isolated)</div>
+                <div>Role: Ground-truth evaluator & scoring model</div>
               </div>
-              <div>
-                <span className="text-slate-500">isolationScope:</span>{' '}
-                <span className="text-slate-300">per-tenant context</span>
+            </div>
+
+            {/* Model Gateway */}
+            <div
+              className={`p-3 rounded border font-mono text-xs ${
+                isM1Active || isM4Active
+                  ? 'bg-rose-950/20 border-rose-500/40 text-rose-200'
+                  : 'bg-[#0b101c] border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5 text-amber-400" />
+                  Model Gateway / Storage API
+                </span>
+                <span className="text-[10px] px-1 rounded bg-slate-900 border border-slate-800">
+                  inference-proxy
+                </span>
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-400">
+                <div>
+                  KV Context Pool:{' '}
+                  <span className={isM4Active ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
+                    {config.gatewaySessionIsolation}
+                  </span>
+                </div>
+                <div>
+                  Storage Authz:{' '}
+                  <span className={isM1Active ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
+                    {config.storageApiAuthz}
+                  </span>
+                </div>
+                <div>Canary Token: 128-bit CANARY-7X9B-... active</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Configuration Diff Inspector */}
-        <div className="p-3.5 rounded-md bg-[#090d16] border border-slate-800 text-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-mono text-xs font-medium text-slate-300">
-              Configuration Diff Inspector
-              {diffs.length === 0 && (
-                <span className="text-[11px] text-emerald-400 font-normal ml-2">
-                  (Clean baseline — zero configuration drift)
-                </span>
-              )}
+        <div className="border border-slate-800 rounded-lg overflow-hidden bg-[#090d16]">
+          <div className="p-2.5 bg-[#070b14] border-b border-slate-800 flex items-center justify-between text-xs font-mono">
+            <span className="text-slate-400">
+              Active Configuration Diffs ({diffs.length} modified field{diffs.length === 1 ? '' : 's'})
             </span>
-
-            {affectedGuarantees.length > 0 && (
-              <span className="font-mono text-[11px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                Invalidated Guarantees: [{affectedGuarantees.join(', ')}]
+            {diffs.length === 0 ? (
+              <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Baseline Clean
+              </span>
+            ) : (
+              <span className="text-amber-400 flex items-center gap-1 text-[11px]">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Regressions / Drifts Active
               </span>
             )}
           </div>
 
           {diffs.length === 0 ? (
-            <p className="text-slate-400 text-xs font-sans">
-              All live configuration parameters align with the cryptographically verified baseline.
-            </p>
+            <div className="p-4 text-center text-xs font-mono text-slate-500">
+              Configuration is in clean baseline alignment. No configuration drift detected.
+            </div>
           ) : (
-            <div className="space-y-1.5 font-mono">
-              {diffs.map((d, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2 rounded border text-xs flex flex-wrap items-center justify-between gap-2 ${
-                    d.isBenign
-                      ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
-                      : 'bg-amber-950/20 border-amber-500/30 text-amber-200'
-                  }`}
-                >
+            <div className="divide-y divide-slate-800/60 font-mono text-xs">
+              {diffs.map((d, i) => (
+                <div key={i} className="p-2.5 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-200">{d.field}:</span>
-                    <span className="line-through text-slate-500">{d.previousValue}</span>
-                    <ArrowRight className="w-3 h-3 text-slate-400" />
-                    <span className={d.isBenign ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                    <span className="text-slate-300 font-semibold">{d.field}</span>
+                    <span className="text-slate-500 text-[11px]">:</span>
+                    <span className="text-slate-400 line-through text-[11px]">{d.previousValue}</span>
+                    <ArrowRight className="w-3 h-3 text-slate-600" />
+                    <span
+                      className={`font-bold ${
+                        d.isBenign ? 'text-emerald-300' : 'text-rose-300'
+                      }`}
+                    >
                       {d.currentValue}
                     </span>
                   </div>
 
-                  <div>
+                  <div className="text-[10px]">
                     {d.isBenign ? (
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px]">
-                        ✓ Benign Change · Fingerprint Invariant
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold">
+                        NEGATIVE CONTROL · NO DRIFT
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px]">
-                        Affects {d.affectedGuarantee} → Re-run {d.affectedTest}
+                      <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 font-semibold">
+                        DRIFT TRIGGER: {d.affectedGuarantee} → {d.affectedTest}
                       </span>
                     )}
                   </div>

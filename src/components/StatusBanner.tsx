@@ -10,8 +10,9 @@ import {
   Server,
   FileCheck2,
   Lock,
+  Zap,
 } from 'lucide-react';
-import type { AssuranceState } from '../types';
+import type { AssuranceState, DecoupledAssuranceSnapshot, BenchmarkMetrics } from '../types';
 
 interface StatusBannerProps {
   state: AssuranceState;
@@ -23,6 +24,8 @@ interface StatusBannerProps {
   testsPassedCount: number;
   totalTestsCount: number;
   chainValidStatus: 'VALID' | 'TAMPERED' | 'INCOMPLETE';
+  decoupledSnapshot?: DecoupledAssuranceSnapshot;
+  metrics?: BenchmarkMetrics;
   onRunFullVerification: () => void;
   onRunSelectiveRetest: () => void;
   isRunning: boolean;
@@ -39,6 +42,8 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   testsPassedCount,
   totalTestsCount,
   chainValidStatus,
+  decoupledSnapshot,
+  metrics,
   onRunFullVerification,
   onRunSelectiveRetest,
   isRunning,
@@ -97,6 +102,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   };
 
   const stateMeta = getStateMeta(state);
+  const rPct = metrics ? Math.max(0, Math.round(metrics.selectiveRetestReduction * 100)) : 0;
 
   return (
     <header className="w-full bg-[#0b101c] border-b border-slate-800/90 sticky top-0 z-40 shadow-sm">
@@ -123,12 +129,22 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
             </div>
           </div>
 
-          {/* Right Status Indicators */}
-          <div className="flex items-center gap-3 text-xs">
-            {/* Simulation tag */}
-            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
-              SIMULATED LAB
-            </span>
+          {/* Right Status Indicators & Decoupled State Chips */}
+          <div className="flex items-center gap-2.5 text-xs">
+            {/* Decoupled Schema Badges */}
+            {decoupledSnapshot && (
+              <div className="hidden lg:flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                  CFG: <strong className={decoupledSnapshot.configuration_status === 'BASELINE' ? 'text-emerald-400' : 'text-amber-400'}>{decoupledSnapshot.configuration_status}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                  TEST: <strong className={decoupledSnapshot.policy_test_status === 'PASS' ? 'text-emerald-400' : decoupledSnapshot.policy_test_status === 'FAIL' ? 'text-rose-400' : 'text-slate-400'}>{decoupledSnapshot.policy_test_status}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                  LEDGER: <strong className={chainValidStatus === 'VALID' ? 'text-emerald-400' : 'text-rose-400'}>{chainValidStatus}</strong>
+                </span>
+              </div>
+            )}
 
             {/* Audit Chain chip */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 font-mono text-[11px]">
@@ -141,7 +157,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
                     : 'bg-amber-400'
                 }`}
               />
-              <span className="text-slate-400">Audit Chain:</span>
+              <span className="text-slate-400">Chain:</span>
               <span
                 className={`font-semibold ${
                   chainValidStatus === 'VALID'
@@ -156,7 +172,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
             </div>
 
             {/* Live Engine Indicator */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Verifier Active</span>
             </div>
@@ -183,8 +199,16 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
 
           {/* Quick Metrics & Direct Action Controls */}
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Retest Reduction Badge */}
+            {rPct > 0 && (
+              <div className="hidden xl:flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-300">
+                <Zap className="w-3 h-3 text-amber-400" />
+                <span>Retest Reduction: <strong>{rPct}%</strong></span>
+              </div>
+            )}
+
             {/* Live telemetry counters */}
-            <div className="hidden xl:flex items-center gap-3 px-3 py-1 rounded-md bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-400">
+            <div className="hidden lg:flex items-center gap-3 px-3 py-1 rounded-md bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-400">
               <span>Probes: <strong className="text-slate-200">{testsPassedCount}/{totalTestsCount}</strong></span>
               <span className="text-slate-700">|</span>
               <span>Latency: <strong className="text-slate-200">{lastRunDurationMs !== null ? `${lastRunDurationMs}ms` : '—'}</strong></span>

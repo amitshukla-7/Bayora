@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node scripts/test_engine.mjs",
+    "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
+    "verify": "node scripts/verify_ledger.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

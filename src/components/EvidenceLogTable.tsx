@@ -14,6 +14,9 @@ import {
   ChevronUp,
   FileQuestion,
   FileCheck2,
+  Download,
+  Upload,
+  KeyRound,
 } from 'lucide-react';
 import type { EvidenceEvent, ChainVerificationReport } from '../types';
 
@@ -24,6 +27,7 @@ interface EvidenceLogTableProps {
   onSimulateTampering: () => void;
   onSimulateMissingEvent: () => void;
   onResetLog: () => void;
+  onImportLedger?: (importedEvents: EvidenceEvent[]) => void;
   isVerifying: boolean;
 }
 
@@ -34,10 +38,12 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
   onSimulateTampering,
   onSimulateMissingEvent,
   onResetLog,
+  onImportLedger,
   isVerifying,
 }) => {
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -45,16 +51,60 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
     setTimeout(() => setCopiedHash(null), 1800);
   };
 
+  const handleExportLedgerJson = () => {
+    if (events.length === 0) return;
+    const exportPackage = {
+      exported_at: new Date().toISOString(),
+      generator: 'Bayora Sentinel Evidence Logging Service v1.4',
+      total_events: events.length,
+      events,
+    };
+    const blob = new Blob([JSON.stringify(exportPackage, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bayora-evidence-ledger-${Date.now().toString(36)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        const imported = Array.isArray(parsed) ? parsed : parsed.events;
+        if (Array.isArray(imported) && imported.length > 0) {
+          onImportLedger?.(imported);
+        } else {
+          alert('Invalid ledger file format: no events found.');
+        }
+      } catch (err: any) {
+        alert(`Failed to parse JSON file: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const getEventBadge = (type: string) => {
     switch (type) {
       case 'run.started':
         return 'text-sky-300 bg-sky-950/40 border-sky-800/60';
+      case 'manifest.captured':
+        return 'text-indigo-300 bg-indigo-950/40 border-indigo-800/60';
       case 'test.started':
         return 'text-slate-300 bg-slate-900 border-slate-800';
       case 'test.completed':
         return 'text-cyan-300 bg-cyan-950/40 border-cyan-800/60';
       case 'policy.decision':
         return 'text-amber-300 bg-amber-950/40 border-amber-800/60';
+      case 'checkpoint.signed':
+        return 'text-teal-300 bg-teal-950/40 border-teal-800/60';
       case 'run.completed':
         return 'text-emerald-300 bg-emerald-950/40 border-emerald-800/60';
       default:
@@ -70,11 +120,11 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
           <div className="flex items-center gap-2">
             <FileCode className="w-4 h-4 text-sky-400" />
             <h2 className="text-sm font-semibold text-slate-100">
-              Cryptographic Audit Ledger (SHA-256 Hash Chain)
+              Cryptographic Audit Ledger (7-Stage SHA-256 Hash Chain)
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Immutable, append-only provenance record chaining every diagnostic probe, policy decision, and execution manifest.
+            Immutable, append-only provenance record chaining run initialization, canonical manifests, diagnostic probes, fail-closed policy decisions, and Ed25519/HMAC checkpoint signatures.
           </p>
         </div>
 
@@ -88,6 +138,34 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
           >
             <FileCheck2 className="w-3.5 h-3.5" />
             Verify Ledger
+          </button>
+
+          {/* Import JSON */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 transition"
+            title="Import an external or previously exported audit ledger JSON for verification"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Import JSON
+          </button>
+
+          {/* Export JSON */}
+          <button
+            onClick={handleExportLedgerJson}
+            disabled={events.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 transition"
+            title="Export signed ledger package for offline verification via CLI"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export JSON
           </button>
 
           {/* Simulate Tampering */}
@@ -149,10 +227,15 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
                   <span className="text-[11px] font-normal text-slate-400">
                     ({verificationReport.validCount}/{verificationReport.totalEvents} valid blocks verified)
                   </span>
+                  {verificationReport.signatureValid && (
+                    <span className="text-[10px] text-teal-300 bg-teal-950/60 px-1.5 py-0.2 rounded border border-teal-800">
+                      Checkpoint Signatures Attested
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs font-sans mt-0.5 text-slate-300">
                   {verificationReport.status === 'VALID' &&
-                    'Complete cryptographic hash chain verified. All pointers and run plans are mathematically unbroken.'}
+                    'Complete cryptographic hash chain verified. All previous-hash pointers, canonical JSON hashes, 7-stage plan completeness, and checkpoint signatures are unbroken.'}
                   {verificationReport.status === 'TAMPERED' &&
                     verificationReport.errorMessage}
                   {verificationReport.status === 'INCOMPLETE' &&
@@ -168,7 +251,7 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
             </div>
 
             <span className="text-[10px] px-1.5 py-0.5 rounded font-mono uppercase bg-black/40 border border-slate-800 shrink-0">
-              Web Crypto SHA-256
+              Web Crypto SHA-256 + HMAC
             </span>
           </div>
         </div>
@@ -236,6 +319,11 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
 
                       {/* Payload Summary */}
                       <td className="py-2.5 px-3 font-sans text-xs max-w-xs truncate text-slate-300">
+                        {ev.event_type === 'manifest.captured' && (
+                          <span className="text-indigo-300">
+                            Manifest bound: <code className="text-slate-400">{ev.payload.canonical_manifest?.configuration_digest?.slice(0, 16)}...</code>
+                          </span>
+                        )}
                         {ev.event_type === 'test.completed' && (
                           <span>
                             <strong className="font-mono text-cyan-300">{ev.payload.test_id}</strong>:{' '}
@@ -266,6 +354,12 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
                           <span>
                             Verdict: <strong className="text-amber-300">{ev.payload.assurance_state}</strong> (Passed:{' '}
                             {ev.payload.guarantees_passed}/5)
+                          </span>
+                        )}
+                        {ev.event_type === 'checkpoint.signed' && (
+                          <span className="text-teal-300 flex items-center gap-1">
+                            <KeyRound className="w-3 h-3 text-teal-400 shrink-0" />
+                            Checkpoint signed ({ev.payload.checkpoint?.key_id})
                           </span>
                         )}
                         {ev.event_type === 'run.completed' && (

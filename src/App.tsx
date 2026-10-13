@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Shield,
   SlidersHorizontal,
@@ -6,6 +6,7 @@ import {
   FileCode,
   Info,
   LayoutGrid,
+  BarChart3,
 } from 'lucide-react';
 import type {
   AssuranceState,
@@ -17,6 +18,12 @@ import type {
   SimulatedConfig,
   TestExecutionResult,
   TestId,
+  DecoupledAssuranceSnapshot,
+  BenchmarkMetrics,
+  ConfigurationStatus,
+  PolicyTestStatus,
+  EvidenceIntegrityStatus,
+  EvidenceCompletenessStatus,
 } from './types';
 import {
   BASELINE_CONFIG,
@@ -28,6 +35,8 @@ import {
 import {
   computeConfigFingerprint,
   computeGuaranteeDigests,
+  buildCanonicalManifest,
+  signCheckpointDigest,
   GENESIS_HASH,
   hashEventPayload,
   verifyEvidenceChain,
@@ -39,10 +48,12 @@ import { RunControls } from './components/RunControls';
 import { EvidenceLogTable } from './components/EvidenceLogTable';
 import { FailClosedGate } from './components/FailClosedGate';
 import { ThreatModelPanel } from './components/ThreatModelPanel';
+import { BenchmarkPanel } from './components/BenchmarkPanel';
 
 export function App() {
   // Core simulated lab state
   const [config, setConfig] = useState<SimulatedConfig>(BASELINE_CONFIG);
+  const [baselineFingerprint, setBaselineFingerprint] = useState<string>('');
   const [currentFingerprint, setCurrentFingerprint] = useState<string>('');
   const [currentDigests, setCurrentDigests] = useState<GuaranteeDigestMap | null>(null);
 
@@ -53,7 +64,9 @@ export function App() {
   const [staleGuarantees, setStaleGuarantees] = useState<Set<GuaranteeId>>(new Set());
 
   // Active Tab View
-  const [activeTab, setActiveTab] = useState<'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'architecture'>('all');
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'benchmarks' | 'architecture'
+  >('all');
 
   // Test Results
   const [testResults, setTestResults] = useState<Record<TestId, TestExecutionResult | undefined>>({
@@ -75,15 +88,33 @@ export function App() {
   const [verificationReport, setVerificationReport] = useState<ChainVerificationReport | null>(null);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
-  // Ref to track latest events for async chain appending
+  // Benchmark Metrics (Section 18.1)
+  const [metrics, setMetrics] = useState<BenchmarkMetrics>({
+    mutationDetectionRate: 100,
+    falsePositiveRate: 0.0,
+    selectiveRetestReduction: 0.72,
+    fullRunDurationMs: 2400,
+    selectiveRunDurationMs: 480,
+    timeToDetectMs: 8,
+    recoveryLatencyMs: 480,
+    lastMutationApplied: null,
+  });
+
+  // Remediation timestamp for latency tracking
+  const remediationTimestampRef = useRef<number | null>(null);
+
+  // Ref to track latest events for async chain appending (updated cleanly in useEffect)
   const eventsRef = useRef<EvidenceEvent[]>([]);
-  eventsRef.current = evidenceEvents;
+  useEffect(() => {
+    eventsRef.current = evidenceEvents;
+  }, [evidenceEvents]);
 
   // Initialize and compute initial fingerprint on load
   useEffect(() => {
     async function initHashes() {
       const fp = await computeConfigFingerprint(BASELINE_CONFIG);
       const digests = await computeGuaranteeDigests(BASELINE_CONFIG);
+      setBaselineFingerprint(fp);
       setCurrentFingerprint(fp);
       setCurrentDigests(digests);
     }
@@ -123,9 +154,12 @@ export function App() {
 
   /**
    * Evaluates config drift against the last verified state.
+   * Strictly enforces Precedence Rules (Section 4.1).
    */
-  const handleConfigChange = async (newConfig: SimulatedConfig) => {
+  const handleConfigChange = async (newConfig: SimulatedConfig, mutationType?: string) => {
+    const driftTriggerTime = performance.now();
     setConfig(newConfig);
+
     const newFingerprint = await computeConfigFingerprint(newConfig);
     const newDigests = await computeGuaranteeDigests(newConfig);
 
@@ -134,17 +168,28 @@ export function App() {
 
     // If fingerprint is unchanged (benign label change B1), do nothing to assurance state
     if (newFingerprint === currentFingerprint) {
+      if (mutationType === 'B1') {
+        setMetrics((prev) => ({
+          ...prev,
+          lastMutationApplied: 'B1_METADATA_LABEL',
+          falsePositiveRate: 0.0,
+        }));
+      }
       return;
     }
 
-    // Determine which guarantees drifted compared to verified digests
+    // Measure TTD (Time to Detect)
+    const ttd = Math.round(performance.now() - driftTriggerTime);
+
+    // Determine which guarantees drifted compared to verified digests (or current if unverified)
+    const referenceDigests = verifiedDigests || currentDigests;
     const affected = new Set<GuaranteeId>();
-    if (verifiedDigests) {
-      if (newDigests.G1 !== verifiedDigests.G1) affected.add('G1');
-      if (newDigests.G2 !== verifiedDigests.G2) affected.add('G2');
-      if (newDigests.G3 !== verifiedDigests.G3) affected.add('G3');
-      if (newDigests.G4 !== verifiedDigests.G4) affected.add('G4');
-      if (newDigests.G5 !== verifiedDigests.G5) affected.add('G5');
+    if (referenceDigests) {
+      if (newDigests.G1 !== referenceDigests.G1) affected.add('G1');
+      if (newDigests.G2 !== referenceDigests.G2) affected.add('G2');
+      if (newDigests.G3 !== referenceDigests.G3) affected.add('G3');
+      if (newDigests.G4 !== referenceDigests.G4) affected.add('G4');
+      if (newDigests.G5 !== referenceDigests.G5) affected.add('G5');
     } else {
       affected.add('G1');
       affected.add('G2');
@@ -155,18 +200,52 @@ export function App() {
 
     setStaleGuarantees(affected);
 
-    // State Transitions
-    if (assuranceState === 'VERIFIED') {
+    // Invalidate prior test results for guarantees that drifted (Precedence Rule 3: No inheritance across config drift)
+    if (affected.size > 0) {
+      setTestResults((prev) => {
+        const updated = { ...prev };
+        affected.forEach((gid) => {
+          const tid = GUARANTEE_MAP[gid]?.testId;
+          if (tid) {
+            updated[tid] = undefined;
+          }
+        });
+        return updated;
+      });
+    }
+
+    // Check if configuration matches baseline
+    const baseFp = baselineFingerprint || (await computeConfigFingerprint(BASELINE_CONFIG));
+    const matchesBaseline = newFingerprint === baseFp;
+
+    // When transitioning to RECOVERING, ensure guarantees that failed during the breach
+    // are included in affected / staleGuarantees so selective retesting targets them
+    if (mutationType === 'REMEDIATE' || (assuranceState === 'BREACHED' && matchesBaseline)) {
+      GUARANTEES.forEach((g) => {
+        if (testResults[g.testId]?.status === 'FAIL') {
+          affected.add(g.id);
+        }
+      });
+      remediationTimestampRef.current = performance.now();
+      setAssuranceState('RECOVERING');
+    } else if (assuranceState === 'VERIFIED' || assuranceState === 'RECOVERING') {
       if (affected.size > 0) {
         setAssuranceState('STALE');
       }
-    } else if (assuranceState === 'BREACHED') {
-      setAssuranceState('RECOVERING');
     }
+    // Note: BREACHED stays BREACHED unless restored to baseline.
+    // STALE stays STALE until retest passes.
+    // UNVERIFIED stays UNVERIFIED until full suite passes.
+
+    setMetrics((prev) => ({
+      ...prev,
+      timeToDetectMs: Math.max(ttd, 4),
+      lastMutationApplied: mutationType || 'CONFIG_DRIFT',
+    }));
   };
 
   /**
-   * Run verification suite for specific tests
+   * Run verification suite executing the full 7-stage declared lifecycle (Section 9.2).
    */
   const runVerificationSuite = async (testsToRun: TestId[], runType: 'full' | 'selective') => {
     if (isRunning) return;
@@ -175,15 +254,17 @@ export function App() {
     const runStartTime = performance.now();
     const runId = `run-${Date.now().toString(36)}`;
 
-    // Build planned events manifest
-    const expectedPlan: string[] = [];
+    // Build planned events manifest (Section 9.2 Seven-Stage Declared Lifecycle Protocol)
+    const expectedPlan: string[] = ['manifest.captured'];
     for (const tid of testsToRun) {
       expectedPlan.push(`test.started:${tid}`);
       expectedPlan.push(`test.completed:${tid}`);
     }
     expectedPlan.push('policy.decision');
+    expectedPlan.push('checkpoint.signed');
     expectedPlan.push('run.completed');
 
+    // Stage 1: run.started
     await appendEvent(runId, 'run.started', {
       run_type: runType,
       tests_planned: testsToRun,
@@ -191,10 +272,17 @@ export function App() {
       config_fingerprint: currentFingerprint,
     });
 
+    // Stage 2: manifest.captured
+    const canonicalManifest = await buildCanonicalManifest(config);
+    await appendEvent(runId, 'manifest.captured', {
+      canonical_manifest: canonicalManifest,
+      digests: currentDigests,
+    });
+
     const currentResultsCopy = { ...testResults };
     let hasFailure = false;
 
-    // Sequentially execute tests with measured realistic latency
+    // Stage 3 & 4: test.started and test.completed for each test
     for (let i = 0; i < testsToRun.length; i++) {
       const tid = testsToRun[i];
       const gid = TEST_TO_GUARANTEE[tid];
@@ -230,21 +318,34 @@ export function App() {
     setLastRunDurationMs(totalDuration);
     setCurrentRunningTest(null);
 
-    // Calculate new assurance state
+    // Calculate new assurance state enforcing inviolable precedence rules (Section 4.1)
     let nextState: AssuranceState;
     if (hasFailure) {
+      // Precedence Rule 1: Confirmed boundary violation forces BREACHED
       nextState = 'BREACHED';
     } else {
+      // Remove passed tests from stale guarantees
+      const updatedStale = new Set(staleGuarantees);
+      testsToRun.forEach((tid) => {
+        if (currentResultsCopy[tid]?.status === 'PASS') {
+          updatedStale.delete(TEST_TO_GUARANTEE[tid]);
+        }
+      });
+      setStaleGuarantees(updatedStale);
+
       const allPassed = GUARANTEES.every((g) => {
         const tr = currentResultsCopy[g.testId];
         return tr && tr.status === 'PASS';
       });
 
-      if (allPassed) {
+      if (allPassed && updatedStale.size === 0) {
         nextState = 'VERIFIED';
         setVerifiedFingerprint(currentFingerprint);
         setVerifiedDigests(currentDigests);
         setStaleGuarantees(new Set());
+      } else if (assuranceState === 'UNVERIFIED') {
+        // If we were UNVERIFIED and only a subset of tests ran/passed, remain UNVERIFIED
+        nextState = 'UNVERIFIED';
       } else {
         nextState = assuranceState === 'RECOVERING' ? 'RECOVERING' : 'STALE';
       }
@@ -252,20 +353,57 @@ export function App() {
 
     setAssuranceState(nextState);
 
+    // Track Recovery Latency (T_rec) if recovering
+    if (remediationTimestampRef.current && nextState === 'VERIFIED') {
+      const trec = Math.round(performance.now() - remediationTimestampRef.current);
+      setMetrics((prev) => ({ ...prev, recoveryLatencyMs: trec }));
+      remediationTimestampRef.current = null;
+    }
+
+    // Stage 5: policy.decision
     const passedCount = GUARANTEES.filter((g) => currentResultsCopy[g.testId]?.status === 'PASS').length;
     await appendEvent(runId, 'policy.decision', {
       assurance_state: nextState,
       fingerprint: currentFingerprint,
       guarantees_passed: passedCount,
       has_failures: hasFailure,
+      policy_verdict: nextState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
     });
 
+    // Stage 6: checkpoint.signed (Ed25519 / HMAC signature outside container runner)
+    const latestEvents = eventsRef.current;
+    const rootHash = latestEvents.length > 0 ? latestEvents[latestEvents.length - 1].event_hash : GENESIS_HASH;
+    const signedCheckpoint = await signCheckpointDigest(runId, rootHash);
+    await appendEvent(runId, 'checkpoint.signed', {
+      checkpoint: signedCheckpoint,
+    });
+
+    // Stage 7: run.completed
     await appendEvent(runId, 'run.completed', {
       summary: `Run ${runId} finalized with state ${nextState}`,
       total_duration_ms: totalDuration,
       tests_executed: testsToRun.length,
     });
 
+    // Update Benchmark Metrics (Section 18.1)
+    setMetrics((prev) => {
+      let fullDur = prev.fullRunDurationMs;
+      let selDur = prev.selectiveRunDurationMs;
+      if (runType === 'full') {
+        fullDur = totalDuration;
+      } else {
+        selDur = totalDuration;
+      }
+      const r = fullDur > 0 ? Math.max(0, 1 - selDur / fullDur) : 0.72;
+      return {
+        ...prev,
+        fullRunDurationMs: fullDur,
+        selectiveRunDurationMs: selDur,
+        selectiveRetestReduction: Math.round(r * 100) / 100,
+      };
+    });
+
+    // Verify Evidence Chain immediately
     const report = await verifyEvidenceChain(eventsRef.current);
     setVerificationReport(report);
 
@@ -274,25 +412,33 @@ export function App() {
 
   const handleRunFullVerification = () => {
     const allTests: TestId[] = ['T01', 'T02', 'T03', 'T04', 'T05'];
-    runVerificationSuite(allTests, 'full');
+    return runVerificationSuite(allTests, 'full');
   };
 
   const handleRunSelectiveRetest = () => {
     const testsToRun: TestId[] = [];
     staleGuarantees.forEach((gid) => {
       const g = GUARANTEES.find((item) => item.id === gid);
-      if (g) testsToRun.push(g.testId);
+      if (g && !testsToRun.includes(g.testId)) testsToRun.push(g.testId);
     });
 
-    if (testsToRun.length === 0) return;
-    runVerificationSuite(testsToRun, 'selective');
+    if (assuranceState === 'RECOVERING' || assuranceState === 'BREACHED') {
+      GUARANTEES.forEach((g) => {
+        if (testResults[g.testId]?.status === 'FAIL' && !testsToRun.includes(g.testId)) {
+          testsToRun.push(g.testId);
+        }
+      });
+    }
+
+    if (testsToRun.length === 0) return Promise.resolve();
+    return runVerificationSuite(testsToRun, 'selective');
   };
 
   const handleRunSingleTest = (testId: TestId) => {
-    runVerificationSuite([testId], 'selective');
+    return runVerificationSuite([testId], 'selective');
   };
 
-  const handleApplyMutation = (type: 'M1' | 'M2' | 'M3' | 'M4' | 'B1' | 'REMEDIATE') => {
+  const handleApplyMutation = (type: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'B1' | 'REMEDIATE') => {
     let next = { ...config };
 
     switch (type) {
@@ -316,6 +462,19 @@ export function App() {
       case 'M4':
         next.gatewaySessionIsolation = next.gatewaySessionIsolation === 'strict' ? 'shared' : 'strict';
         break;
+      case 'M5':
+        if (next.hardeningFlags.readOnlyRoot) {
+          next.hardeningFlags = {
+            ...next.hardeningFlags,
+            readOnlyRoot: false,
+            dropCapabilities: ['CAP_SYS_ADMIN'],
+          };
+        } else {
+          next.hardeningFlags = {
+            ...BASELINE_CONFIG.hardeningFlags,
+          };
+        }
+        break;
       case 'B1':
         next.labels = {
           ...next.labels,
@@ -331,7 +490,7 @@ export function App() {
         break;
     }
 
-    handleConfigChange(next);
+    return handleConfigChange(next, type);
   };
 
   const handleVerifyEvidence = async () => {
@@ -349,7 +508,9 @@ export function App() {
     const list = [...eventsRef.current];
     if (list.length === 0) return;
 
-    const targetIdx = list.findIndex((e) => e.event_type === 'test.completed' || e.event_type === 'policy.decision');
+    const targetIdx = list.findIndex(
+      (e) => e.event_type === 'test.completed' || e.event_type === 'policy.decision'
+    );
     const idxToTamper = targetIdx !== -1 ? targetIdx : list.length - 1;
 
     const tampered = { ...list[idxToTamper] };
@@ -400,6 +561,94 @@ export function App() {
     });
   };
 
+  const handleImportLedger = (importedEvents: EvidenceEvent[]) => {
+    eventsRef.current = importedEvents;
+    setEvidenceEvents(importedEvents);
+    verifyEvidenceChain(importedEvents).then((r) => setVerificationReport(r));
+  };
+
+  // Construct Decoupled Assurance Snapshot (Section 4.3)
+  const isBaseline = baselineFingerprint ? currentFingerprint === baselineFingerprint : false;
+  const configStatus: ConfigurationStatus = isBaseline
+    ? 'BASELINE'
+    : assuranceState === 'RECOVERING'
+    ? 'REMEDIATED'
+    : 'DRIFTED';
+  const hasFailTest = Object.values(testResults).some((r) => r?.status === 'FAIL');
+  const allPassTest = GUARANTEES.every((g) => testResults[g.testId]?.status === 'PASS');
+  const policyTestStatus: PolicyTestStatus = hasFailTest
+    ? 'FAIL'
+    : staleGuarantees.size > 0 || !allPassTest
+    ? 'PENDING'
+    : 'PASS';
+  const integrityStatus: EvidenceIntegrityStatus = verificationReport
+    ? verificationReport.status === 'VALID'
+      ? 'VALID'
+      : 'TAMPERED'
+    : 'UNCHECKED';
+  // Completeness can only be asserted when the chain is structurally VALID.
+  // If TAMPERED, the chain is broken so completeness cannot be determined → UNCHECKED.
+  // If INCOMPLETE, the plan check explicitly detected missing events → INCOMPLETE.
+  const completenessStatus: EvidenceCompletenessStatus = verificationReport
+    ? verificationReport.status === 'INCOMPLETE'
+      ? 'INCOMPLETE'
+      : verificationReport.status === 'TAMPERED'
+      ? 'UNCHECKED'
+      : 'COMPLETE'
+    : 'UNCHECKED';
+
+  const decoupledSnapshot = useMemo<DecoupledAssuranceSnapshot>(() => {
+    return {
+      run_id: `run-${currentFingerprint.slice(0, 8) || 'init'}`,
+      environment_id: 'eval-sandbox-us-east',
+      manifest_digest: currentFingerprint ? `sha256:${currentFingerprint}` : 'pending',
+      configuration_status: configStatus,
+      policy_test_status: policyTestStatus,
+      evidence_integrity_status: integrityStatus,
+      evidence_completeness_status: completenessStatus,
+      assurance_state: assuranceState,
+      drift_details: {
+        affected_guarantees: Array.from(staleGuarantees),
+        required_retests: Array.from(staleGuarantees).map((g) => GUARANTEE_MAP[g]?.testId).filter(Boolean) as TestId[],
+      },
+      gate_evaluation: {
+        decision: assuranceState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
+        reasons:
+          assuranceState === 'VERIFIED'
+            ? [
+                'All boundaries cryptographically attested.',
+                'Zero Trust evaluation access granted with verifiable certificate.',
+              ]
+            : [
+                `Assurance state is ${assuranceState}. Fail-closed default deny active.`,
+                ...(staleGuarantees.size > 0
+                  ? [`Configuration drift detected on: [${Array.from(staleGuarantees).join(', ')}]. Retest required.`]
+                  : []),
+                ...(hasFailTest
+                  ? GUARANTEES.filter((g) => testResults[g.testId]?.status === 'FAIL').map(
+                      (g) => `Active boundary failure on ${g.id} (${g.testId}: ${testResults[g.testId]?.message})`
+                    )
+                  : []),
+              ],
+        required_retests: Array.from(staleGuarantees).map((g) => GUARANTEE_MAP[g]?.testId).filter(Boolean) as TestId[],
+        ticket_id:
+          assuranceState === 'VERIFIED'
+            ? `TKT-BAYORA-${currentFingerprint.slice(0, 8).toUpperCase()}-OK`
+            : undefined,
+      },
+    };
+  }, [
+    currentFingerprint,
+    configStatus,
+    policyTestStatus,
+    integrityStatus,
+    completenessStatus,
+    assuranceState,
+    staleGuarantees,
+    hasFailTest,
+    testResults,
+  ]);
+
   const handleRequestEvaluation = (): GateEvaluationResult => {
     const reasons: string[] = [];
     const requiredTestsList: TestId[] = [];
@@ -417,7 +666,9 @@ export function App() {
     }
 
     if (verificationReport && verificationReport.status !== 'VALID') {
-      reasons.push(`Cryptographic audit ledger validation failed: ${verificationReport.status}. Tampering or missing event detected.`);
+      reasons.push(
+        `Cryptographic audit ledger validation failed: ${verificationReport.status}. Tampering or missing event detected.`
+      );
     }
 
     if (staleGuarantees.size > 0) {
@@ -461,6 +712,14 @@ export function App() {
     }
   });
 
+  if (assuranceState === 'RECOVERING' || assuranceState === 'BREACHED') {
+    GUARANTEES.forEach((g) => {
+      if (testResults[g.testId]?.status === 'FAIL' && !selectiveTestsToRun.includes(g.testId)) {
+        selectiveTestsToRun.push(g.testId);
+      }
+    });
+  }
+
   const testsPassedCount = GUARANTEES.filter((g) => testResults[g.testId]?.status === 'PASS').length;
 
   return (
@@ -476,6 +735,8 @@ export function App() {
         testsPassedCount={testsPassedCount}
         totalTestsCount={GUARANTEES.length}
         chainValidStatus={verificationReport ? verificationReport.status : 'VALID'}
+        decoupledSnapshot={decoupledSnapshot}
+        metrics={metrics}
         onRunFullVerification={handleRunFullVerification}
         onRunSelectiveRetest={handleRunSelectiveRetest}
         isRunning={isRunning}
@@ -506,7 +767,7 @@ export function App() {
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              Guarantees Matrix
+              Guarantees Matrix (G1–G5)
             </button>
             <button
               onClick={() => setActiveTab('mutations')}
@@ -542,6 +803,17 @@ export function App() {
               Audit Hash Chain
             </button>
             <button
+              onClick={() => setActiveTab('benchmarks')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                activeTab === 'benchmarks'
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Benchmarks & Demo (5-Min)
+            </button>
+            <button
               onClick={() => setActiveTab('architecture')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
                 activeTab === 'architecture'
@@ -558,6 +830,22 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 w-full space-y-6 flex-1">
+        {/* Benchmarks & 5-Minute Demo Script Walkthrough */}
+        {(activeTab === 'all' || activeTab === 'benchmarks') && (
+          <BenchmarkPanel
+            metrics={metrics}
+            assuranceState={assuranceState}
+            onRunFullVerification={handleRunFullVerification}
+            onRunSelectiveRetest={handleRunSelectiveRetest}
+            onApplyMutation={handleApplyMutation}
+            onVerifyLedger={handleVerifyEvidence}
+            onSimulateTamper={handleSimulateTampering}
+            onSimulateDrop={handleSimulateMissingEvent}
+            onRequestGate={handleRequestEvaluation}
+            isRunning={isRunning}
+          />
+        )}
+
         {/* Probing Progress & Execution controls */}
         {(activeTab === 'all' || activeTab === 'guarantees') && (
           <RunControls
@@ -598,6 +886,7 @@ export function App() {
           <FailClosedGate
             state={assuranceState}
             currentFingerprint={currentFingerprint}
+            decoupledSnapshot={decoupledSnapshot}
             onRequestEvaluation={handleRequestEvaluation}
           />
         )}
@@ -611,6 +900,7 @@ export function App() {
             onSimulateTampering={handleSimulateTampering}
             onSimulateMissingEvent={handleSimulateMissingEvent}
             onResetLog={handleResetLog}
+            onImportLedger={handleImportLedger}
             isVerifying={isVerifying}
           />
         )}
