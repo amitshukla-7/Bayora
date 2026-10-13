@@ -1,5 +1,5 @@
 /**
- * Comprehensive Automated Test Suite for Bayora Sentinel
+ * Comprehensive Automated Test Suite for Bayora
  * Validates:
  * 1. Canonical JSON RFC 8785 compliance
  * 2. SHA-256 hashing & deterministic fingerprinting
@@ -19,7 +19,7 @@ import { verifyLedgerFile } from './verify_ledger.mjs';
 import { writeFileSync, unlinkSync } from 'fs';
 
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-const CHECKPOINT_SECRET_KEY = 'BAYORA-SENTINEL-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
+const CHECKPOINT_SECRET_KEY = 'BAYORA-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
 
 function canonicalJson(data) {
   if (data === null || typeof data !== 'object') {
@@ -71,7 +71,7 @@ function assert(condition, testName) {
 
 async function runTests() {
   console.log(`\n======================================================`);
-  console.log(` BAYORA SENTINEL · SYSTEM VALIDATION TEST SUITE       `);
+  console.log(` BAYORA · SYSTEM VALIDATION TEST SUITE       `);
   console.log(`======================================================\n`);
 
   // Test 1: Canonical JSON key ordering

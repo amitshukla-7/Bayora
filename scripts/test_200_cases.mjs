@@ -1,5 +1,5 @@
 /**
- * Bayora Sentinel - 200 Rigorous Verification Test Cases
+ * Bayora - 200 Rigorous Verification Test Cases
  * 
  * Tests all 12 architectural areas of the system:
  * 1. Canonical JSON RFC 8785 & Encoding Rigor (Tests 1–25)
@@ -71,7 +71,7 @@ function recordTest(id, category, description, expected, actual, condition) {
 
 async function runAll200Tests() {
   console.log('========================================================================');
-  console.log('BAYORA SENTINEL: 200 RIGOROUS TEST CASES VALIDATION SUITE');
+  console.log('BAYORA: 200 RIGOROUS TEST CASES VALIDATION SUITE');
   console.log('========================================================================\n');
 
   // =========================================================================

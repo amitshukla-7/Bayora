@@ -144,7 +144,7 @@ export const MutationLab: React.FC<MutationLabProps> = ({
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Inject synthetic perimeter degradation scenarios to test Sentinel's continuous drift mapping, selective retesting, and negative controls.
+            Inject synthetic perimeter degradation scenarios to test Bayora's continuous drift mapping, selective retesting, and negative controls.
           </p>
         </div>
 

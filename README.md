@@ -1,7 +1,7 @@
-# Bayora Sentinel 🛡️
+# Bayora 🛡️
 ### Continuous AI Red-Teaming Infrastructure Verification & Fail-Closed Gate
 
-Bayora Sentinel is an enterprise-grade architectural prototype demonstrating continuous, cryptographic verification for adversarial AI safety testbeds. It continuously verifies that an AI red-teaming sandbox's isolation guarantees (filesystem boundaries, network microsegmentation, storage API authorizations, model gateway context isolation, and container hardening) hold after configuration changes or runtime drift.
+Bayora is an enterprise-grade architectural prototype demonstrating continuous, cryptographic verification for adversarial AI safety testbeds. It continuously verifies that an AI red-teaming sandbox's isolation guarantees (filesystem boundaries, network microsegmentation, storage API authorizations, model gateway context isolation, and container hardening) hold after configuration changes or runtime drift.
 
 ---
 
@@ -24,14 +24,14 @@ npm run build
 
 ## 🧠 Architectural Overview
 
-Sentinel models a secure multi-tenant AI testing harness with three distinct roles:
+Bayora models a secure multi-tenant AI testing harness with three distinct roles:
 1. **`red` (Adversary Container):** Executes untrusted jailbreak prompts, tool calls, and model attack suites. Must be strictly isolated.
 2. **`blue` (Control Plane / Evaluator):** Holds gold-standard evaluation prompts, ground-truth benchmarks, and grading models.
 3. **`model-gateway` (Inference Proxy):** Routes prompts to model backends (e.g., vLLM/TGI) with session partitioning.
 
 ```
                   ┌───────────────────────────────────────────┐
-                  │          BAYORA SENTINEL VERIFIER         │
+                  │              BAYORA VERIFIER              │
                   └─────┬───────────────────────────────┬─────┘
                         │ Canonical SHA-256 Fingerprint │
                         ▼                               ▼
@@ -64,7 +64,7 @@ Sentinel models a secure multi-tenant AI testing harness with three distinct rol
 
 ## 🔄 Assurance State Machine
 
-Sentinel transitions across 5 deterministic assurance states:
+Bayora transitions across 5 deterministic assurance states:
 
 ```
           ┌─────────────┐
@@ -84,7 +84,7 @@ Sentinel transitions across 5 deterministic assurance states:
 
 1. **`UNVERIFIED`**: Default state upon boot, or triggered if the audit chain is tampered with or incomplete. Fail-closed gate blocks access.
 2. **`VERIFIED`**: Full test suite passes. Configuration fingerprint matches verified baseline. Gate grants access.
-3. **`STALE`**: Relevant configuration drifts from baseline. Sentinel calculates per-guarantee digests and flags only affected tests.
+3. **`STALE`**: Relevant configuration drifts from baseline. Bayora calculates per-guarantee digests and flags only affected tests.
 4. **`BREACHED`**: An active test fails (e.g., volume boundary or network breach). Environment is flagged compromised.
 5. **`RECOVERING`**: Configuration is remediated back to clean parameters. Retesting required before verification is restored.
 - **Benign Changes (B1)**: Adding non-security labels or tags does **not** alter the cryptographic fingerprint or degrade state.
@@ -97,8 +97,8 @@ Sentinel transitions across 5 deterministic assurance states:
    - Security-relevant parameters (`redMounts`, `redNetworks`, `storageApiAuthz`, `gatewaySessionIsolation`, `hardeningFlags`) are recursively sorted and serialized into canonical JSON.
    - Hashed using **Web Crypto SHA-256** (`crypto.subtle.digest`).
 2. **Per-Guarantee Digests & Selective Retesting:**
-   - Sentinel maintains individual SHA-256 digests for each guarantee ($G_1$ through $G_5$).
-   - If an operator modifies only the storage authorization mode, only $G_3$ digest drifts. Sentinel enables **Selective Retest: 1 test (T03)** instead of rerunning all 5 tests.
+   - Bayora maintains individual SHA-256 digests for each guarantee ($G_1$ through $G_5$).
+   - If an operator modifies only the storage authorization mode, only $G_3$ digest drifts. Bayora enables **Selective Retest: 1 test (T03)** instead of rerunning all 5 tests.
 3. **Tamper-Evident Hash Chain Audit Log:**
    - Every lifecycle event (`run.started`, `test.started`, `test.completed`, `policy.decision`, `run.completed`) contains:
      - `sequence`: Integer index (1, 2, 3...)
@@ -143,7 +143,7 @@ Sentinel transitions across 5 deterministic assurance states:
 ### Minute 3: Cryptographic Audit & Tamper Simulation
 1. Switch to the **Audit Hash Chain** tab.
 2. Click **`Verify Ledger`**.
-   - Sentinel recomputes all SHA-256 hashes across the chain.
+   - Bayora recomputes all SHA-256 hashes across the chain.
    - Banner displays **`AUDIT STATUS: VALID`** (All chain links mathematically verified).
 3. Click **`Simulate Tamper`**.
    - Simulates an attacker modifying a recorded event payload (e.g. flipping a `FAIL` to a forged `PASS` without updating the cryptographic hash).
@@ -179,7 +179,7 @@ Sentinel transitions across 5 deterministic assurance states:
 
 ### Out of Scope (Explicit Limitations)
 - **Host & Hypervisor Trust:** The host Linux kernel, containerd/Docker daemon, and CPU/RAM are assumed to be trusted roots of trust.
-- **Kernel Breakouts & Zero-Days:** Sentinel operates at the configuration and policy boundary; it does not detect kernel privilege escalation zero-days (e.g. runc vulnerabilities, Dirty Pipe).
+- **Kernel Breakouts & Zero-Days:** Bayora operates at the configuration and policy boundary; it does not detect kernel privilege escalation zero-days (e.g. runc vulnerabilities, Dirty Pipe).
 - **Hardware Faults & Side Channels:** Physical fault injection (Rowhammer) and microarchitectural timing side channels (Spectre, Meltdown, GPU co-located timing) are outside the model.
 
 ---

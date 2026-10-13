@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Bayora Sentinel - Standalone Independent Evidence Verifier CLI
+ * Bayora - Standalone Independent Evidence Verifier CLI
  * 
  * Verifies exported audit ledger packages completely offline,
  * independent of the browser or control plane.
@@ -16,7 +16,7 @@ import { readFileSync } from 'fs';
 import { createHash, createHmac } from 'crypto';
 
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-const CHECKPOINT_SECRET_KEY = 'BAYORA-SENTINEL-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
+const CHECKPOINT_SECRET_KEY = 'BAYORA-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
 
 function canonicalJson(data) {
   if (data === null || typeof data !== 'object') {
@@ -44,7 +44,7 @@ function verifyHmacSignature(checkpoint) {
 
 export function verifyLedgerFile(filePath) {
   console.log(`\n======================================================`);
-  console.log(` BAYORA SENTINEL · INDEPENDENT EVIDENCE VERIFIER CLI `);
+  console.log(` BAYORA · INDEPENDENT EVIDENCE VERIFIER CLI `);
   console.log(`======================================================`);
   console.log(`Reading ledger file: ${filePath}`);
 

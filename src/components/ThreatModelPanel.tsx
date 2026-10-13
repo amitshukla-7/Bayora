@@ -83,7 +83,7 @@ export const ThreatModelPanel: React.FC = () => {
                   <strong className="text-slate-200">Host OS & Hypervisor:</strong> The host Linux kernel, containerd runtime, and physical CPU/RAM are assumed to be trusted roots of trust.
                 </li>
                 <li>
-                  <strong className="text-slate-200">Container Breakouts & Zero-Days:</strong> Sentinel operates at the configuration and policy boundary; it does not detect kernel privilege escalation zero-days (e.g. Dirty Pipe, runc escapes).
+                  <strong className="text-slate-200">Container Breakouts & Zero-Days:</strong> Bayora operates at the configuration and policy boundary; it does not detect kernel privilege escalation zero-days (e.g. Dirty Pipe, runc escapes).
                 </li>
                 <li>
                   <strong className="text-slate-200">Hardware & Microarchitectural Attacks:</strong> Physical fault injection (Rowhammer) and CPU/cache timing side channels (Spectre/Meltdown) are outside the model.

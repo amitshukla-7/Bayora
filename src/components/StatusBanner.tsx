@@ -117,7 +117,6 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold tracking-wider text-sm text-white">BAYORA</span>
-                <span className="text-xs text-slate-400 font-light tracking-widest">SENTINEL</span>
               </div>
             </div>
 

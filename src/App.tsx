@@ -914,7 +914,7 @@ export function App() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-[#070b14] py-4 text-center text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
-          <span>Bayora Sentinel · Adversarial AI Infrastructure Security Verification</span>
+          <span>Bayora · Adversarial AI Infrastructure Security Verification</span>
           <span>Continuous Zero Trust Posture Engine · Enterprise v1.4</span>
         </div>
       </footer>

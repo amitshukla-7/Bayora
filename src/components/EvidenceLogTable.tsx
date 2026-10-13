@@ -55,7 +55,7 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
     if (events.length === 0) return;
     const exportPackage = {
       exported_at: new Date().toISOString(),
-      generator: 'Bayora Sentinel Evidence Logging Service v1.4',
+      generator: 'Bayora Evidence Logging Service v1.4',
       total_events: events.length,
       events,
     };

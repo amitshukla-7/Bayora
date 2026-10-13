@@ -1,6 +1,6 @@
-_BAYORA SENTINEL | TECHNICAL DESIGN & IMPLEMENTATION PLAN_
+_BAYORA | TECHNICAL DESIGN & IMPLEMENTATION PLAN_
 
-# **BAYORA SENTINEL**
+# **BAYORA**
 
 Continuous Security Assurance for AI Evaluation Infrastructure
 
@@ -18,7 +18,7 @@ _Purpose: align the team on the problem, architecture, build scope, formal secur
 
 | **Item** | **Details** |
 | :--- | :--- |
-| Project name | Bayora Sentinel |
+| Project name | Bayora |
 | Working tagline | Continuously verify that an AI evaluation environment's isolation guarantees remain supported by current configuration, executable tests, and independently checkable evidence. |
 | Project domain | Securing Adversarial AI Safety Testing Infrastructure |
 | Document status | **Version 1.1 (Formalized Architecture & Experimental Benchmark)**; incorporates reviewer feedback on state machines, audit completeness protocols, decoupled drift/breach schemas, and selective retesting metrics. |
@@ -29,9 +29,9 @@ _Purpose: align the team on the problem, architecture, build scope, formal secur
 
 ## **Executive summary**
 
-Bayora Sentinel is an architectural assurance layer for environments where red-team adversarial harnesses, blue-team evaluation planes, and model inference proxies must operate concurrently without exposing sensitive tenant state. Instead of building another jailbreak generator or a passive security dashboard, Sentinel continuously evaluates whether declared security guarantees remain supported by cryptographic evidence after runtime drift or configuration changes.
+Bayora is an architectural assurance layer for environments where red-team adversarial harnesses, blue-team evaluation planes, and model inference proxies must operate concurrently without exposing sensitive tenant state. Instead of building another jailbreak generator or a passive security dashboard, Bayora continuously evaluates whether declared security guarantees remain supported by cryptographic evidence after runtime drift or configuration changes.
 
-The system captures a canonical environment manifest, computes deterministic SHA-256 fingerprints, maintains dependency-mapped per-guarantee digests, executes automated isolation probes, detects intentional configuration mutations, and records evidence in an append-only cryptographic hash chain. When configuration drifts, Sentinel flags affected guarantees as `STALE`, enables targeted **selective retesting**, and enforces a **fail-closed Zero Trust policy gate** preventing untrusted evaluation runs until verification is restored.
+The system captures a canonical environment manifest, computes deterministic SHA-256 fingerprints, maintains dependency-mapped per-guarantee digests, executes automated isolation probes, detects intentional configuration mutations, and records evidence in an append-only cryptographic hash chain. When configuration drifts, Bayora flags affected guarantees as `STALE`, enables targeted **selective retesting**, and enforces a **fail-closed Zero Trust policy gate** preventing untrusted evaluation runs until verification is restored.
 
 ### Key Differentiators to Validate
 1. **Change-Aware Verification Loop**: Connecting configuration state, policy-derived tests, evidence freshness, and fail-closed gate enforcement.
@@ -60,7 +60,7 @@ A static audit report from deployment time is invalidated the moment an operator
 - **Dual-Property Cryptographic Ledger**: Hash-chain all run events and validate against an `expected_plan` manifest to catch both payload tampering and omitted events.
 - **Fail-Closed Zero Trust Arbiter**: Block new adversarial evaluation runs by default whenever the assurance state is `UNVERIFIED`, `STALE`, `BREACHED`, or `RECOVERING`.
 
-### **1.3 What Sentinel is not**
+### **1.3 What Bayora is not**
 - Not a new LLM or jailbreak-generation engine (e.g., garak/PyRIT workloads are clients of the sandbox, not the verifier).
 - Not a replacement for container runtimes (Docker, gVisor), OPA, or enterprise SIEM platforms.
 - Not a mathematical proof that hardware microarchitectural side-channels or zero-day kernel exploits are impossible.
@@ -156,7 +156,7 @@ A static audit report from deployment time is invalidated the moment an operator
 
 ## **4. Formal assurance state machine**
 
-Sentinel implements a formal deterministic state machine with strict precedence rules, ensuring that stale, breached, or unverified environments can never be granted evaluation access.
+Bayora implements a formal deterministic state machine with strict precedence rules, ensuring that stale, breached, or unverified environments can never be granted evaluation access.
 
 ```mermaid
 stateDiagram-v2
@@ -237,7 +237,7 @@ To separate configuration drift, test execution, evidence integrity, and access 
 
 ## **5. Technology stack & implementation scope**
 
-To ensure hackathon completion, Sentinel focuses on a clean, robust, and measurable implementation.
+To ensure hackathon completion, Bayora focuses on a clean, robust, and measurable implementation.
 
 | **Layer** | **MVP Decision** | **Rationale** |
 | :--- | :--- | :--- |
@@ -291,7 +291,7 @@ Guarantee Matrix: G1–G5
 ### **8.1 Manifest Scoping & Fingerprint Structure**
 A cryptographic fingerprint proves that two canonical configuration manifests match. It does not replace behavioral tests; it determines **when tests must be re-run**.
 
-Sentinel distinguishes three digests:
+Bayora distinguishes three digests:
 1. **`configuration_digest`**: Captured from declared infrastructure configuration (mounts, networks, authz modes, security flags).
 2. **`runtime_observation_digest`**: Captured from active runtime telemetry (inspection of running container state).
 3. **`evidence_digest`**: Root hash of the latest finalized audit verification block.
@@ -355,7 +355,7 @@ graph TD
 ```
 
 ### **8.3 Selective Retesting Efficiency Metric**
-To evaluate selective verification against full re-verification, Sentinel reports the **Unnecessary Retest Reduction ($R$)**:
+To evaluate selective verification against full re-verification, Bayora reports the **Unnecessary Retest Reduction ($R$)**:
 
 $$R = 1 - \frac{T_{\text{selective}}}{T_{\text{full}}}$$
 
@@ -367,7 +367,7 @@ $$R = 1 - \frac{T_{\text{selective}}}{T_{\text{full}}}$$
 
 ## **9. Audit and provenance design: dual-property protocol**
 
-Sentinel enforces both **Integrity** (anti-tampering) and **Completeness** (anti-omission).
+Bayora enforces both **Integrity** (anti-tampering) and **Completeness** (anti-omission).
 
 ```
 Hash Chain Linkage:
@@ -444,7 +444,7 @@ To address cross-session inference context leakage without overclaiming side-cha
 
 ## **12. Controlled mutation benchmark & negative controls**
 
-Sentinel validates its detection mechanisms against five predefined, reversible mutation scenarios:
+Bayora validates its detection mechanisms against five predefined, reversible mutation scenarios:
 
 ```yaml
 schema_version: "1.1"
@@ -612,7 +612,7 @@ bayora/
 
 | **Identified Risk** | **Architectural Mitigation** |
 | :--- | :--- |
-| Overlapping novelty with existing tools | Position Sentinel around continuous change-aware verification, per-guarantee digests, and fail-closed policy enforcement rather than attack generation. |
+| Overlapping novelty with existing tools | Position Bayora around continuous change-aware verification, per-guarantee digests, and fail-closed policy enforcement rather than attack generation. |
 | Scope creep causes unfinished implementation | Focus on the core 3-role lab, 5 diagnostic probes, 5 mutation fixtures, and native browser Web Crypto. |
 | Selective retesting misses a regression | Maintain conservative dependency mappings; fall back to full verification whenever field impact is ambiguous. |
 | Green dashboard breeds false confidence | Expose raw cryptographic hashes, measured latencies, and explicit residual risk disclaimers directly in the UI. |
@@ -669,4 +669,4 @@ bayora/
 
 ## **Appendix B — One-sentence project description**
 
-**Bayora Sentinel continuously verifies whether an AI red-teaming environment’s isolation guarantees remain supported by current configuration, executable security tests, and independently checkable evidence.**
+**Bayora continuously verifies whether an AI red-teaming environment’s isolation guarantees remain supported by current configuration, executable security tests, and independently checkable evidence.**

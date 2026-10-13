@@ -51,7 +51,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
       assurance_state: state,
       configuration_fingerprint: currentFingerprint,
       verified_baseline: evaluationResult.verifiedFingerprint,
-      issuer: 'Bayora Sentinel Zero Trust Gate Arbiter v1.4',
+      issuer: 'Bayora Zero Trust Gate Arbiter v1.4',
       scope: 'adversarial-evaluation-harness-run',
       reasons: evaluationResult.reasons,
       decoupled_posture: decoupledSnapshot,

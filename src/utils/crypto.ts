@@ -162,7 +162,7 @@ export async function hashEventPayload(
 }
 
 // Global checkpoint signing secret (held in external trust boundary outside container runner)
-const CHECKPOINT_SECRET_KEY = 'BAYORA-SENTINEL-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
+const CHECKPOINT_SECRET_KEY = 'BAYORA-INDEPENDENT-CHECKPOINT-SIGNER-KEY-V1';
 
 /**
  * Creates a signed cryptographic checkpoint over the root hash of a run (Section 3.1 & 9.2).
