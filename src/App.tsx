@@ -103,6 +103,30 @@ export function App() {
   // Remediation timestamp for latency tracking
   const remediationTimestampRef = useRef<number | null>(null);
 
+  // Theme State (Dark / Light) with LocalStorage persistence
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bayora-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try {
+      localStorage.setItem('bayora-theme', theme);
+    } catch {
+      // Local storage may be restricted in sandboxed environments
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   // Ref to track latest events for async chain appending (updated cleanly in useEffect)
   const eventsRef = useRef<EvidenceEvent[]>([]);
   useEffect(() => {
@@ -723,7 +747,12 @@ export function App() {
   const testsPassedCount = GUARANTEES.filter((g) => testResults[g.testId]?.status === 'PASS').length;
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-sky-200">
+    <div
+      data-theme={theme}
+      className={`min-h-screen ${
+        theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#090d16] text-slate-100'
+      } flex flex-col font-sans selection:bg-sky-500/30 selection:text-sky-200 transition-colors duration-150`}
+    >
       {/* Executive Status Header */}
       <StatusBanner
         state={assuranceState}
@@ -741,6 +770,8 @@ export function App() {
         onRunSelectiveRetest={handleRunSelectiveRetest}
         isRunning={isRunning}
         selectiveTestsCount={selectiveTestsToRun.length}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Subnav / Dashboard Tabs */}

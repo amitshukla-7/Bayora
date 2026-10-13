@@ -11,6 +11,8 @@ import {
   FileCheck2,
   Lock,
   Zap,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import type { AssuranceState, DecoupledAssuranceSnapshot, BenchmarkMetrics } from '../types';
 
@@ -30,6 +32,8 @@ interface StatusBannerProps {
   onRunSelectiveRetest: () => void;
   isRunning: boolean;
   selectiveTestsCount: number;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const StatusBanner: React.FC<StatusBannerProps> = ({
@@ -48,6 +52,8 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   onRunSelectiveRetest,
   isRunning,
   selectiveTestsCount,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showFullHash, setShowFullHash] = useState(false);
@@ -175,6 +181,28 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Verifier Active</span>
             </div>
+
+            {/* Theme Switcher Toggle */}
+            {onToggleTheme && (
+              <button
+                onClick={onToggleTheme}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 text-[11px] font-mono hover:border-slate-700 transition cursor-pointer shadow-xs"
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
+                aria-label={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-slate-300 font-sans">Light</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-sky-600" />
+                    <span className="text-slate-700 font-sans font-semibold">Dark</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 

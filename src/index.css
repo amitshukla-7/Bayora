@@ -15,6 +15,25 @@
     --color-warning: #f59e0b;
     --color-danger: #f43f5e;
     --color-info: #0284c7;
+    color-scheme: dark;
+  }
+
+  [data-theme="light"],
+  .light {
+    --bg-base: #f8fafc;
+    --surface-card: #ffffff;
+    --surface-card-hover: #f1f5f9;
+    --surface-elevated: #ffffff;
+    --border-subtle: #e2e8f0;
+    --border-active: #cbd5e1;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --color-success: #059669;
+    --color-warning: #d97706;
+    --color-danger: #e11d48;
+    --color-info: #0284c7;
+    color-scheme: light;
   }
 
   body {
@@ -32,18 +51,390 @@
   }
 }
 
-/* Scrollbar customization */
+/* =========================================================================
+   LIGHT THEME DESIGN SYSTEM & HIGH-CONTRAST ACCENTS
+   ========================================================================= */
+
+[data-theme="light"],
+.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+[data-theme="light"] body,
+.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Base Canvas & Outer Wrapper */
+[data-theme="light"] .bg-\[\#090d16\],
+.light .bg-\[\#090d16\] {
+  background-color: #f8fafc !important;
+}
+
+/* Headers & Subnav */
+[data-theme="light"] .bg-\[\#0b101c\],
+.light .bg-\[\#0b101c\] {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-\[\#0a0f1c\],
+.light .bg-\[\#0a0f1c\] {
+  background-color: #f8fafc !important;
+}
+
+/* Footers */
+[data-theme="light"] .bg-\[\#070b14\],
+.light .bg-\[\#070b14\] {
+  background-color: #f1f5f9 !important;
+}
+
+/* Primary Cards */
+[data-theme="light"] .bg-\[\#0e1320\],
+.light .bg-\[\#0e1320\] {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.03) !important;
+}
+
+/* Card Headers */
+[data-theme="light"] .bg-\[\#0a0f1a\],
+.light .bg-\[\#0a0f1a\] {
+  background-color: #f8fafc !important;
+}
+
+/* Expanded Table Rows & Code Sub-panels */
+[data-theme="light"] .bg-\[\#050912\],
+.light .bg-\[\#050912\] {
+  background-color: #f8fafc !important;
+}
+
+/* Borders */
+[data-theme="light"] .border-slate-800,
+[data-theme="light"] .border-slate-800\/90,
+[data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-800\/50,
+.light .border-slate-800,
+.light .border-slate-800\/90,
+.light .border-slate-800\/80,
+.light .border-slate-800\/50 {
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .border-slate-700,
+[data-theme="light"] .border-slate-700\/80,
+.light .border-slate-700,
+.light .border-slate-700\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .divide-slate-800,
+[data-theme="light"] .divide-slate-800\/80,
+.light .divide-slate-800,
+.light .divide-slate-800\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Typography Overrides */
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200,
+.light .text-slate-100,
+.light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-slate-300,
+.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-slate-400,
+.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .text-slate-500,
+.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .text-slate-600,
+.light .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+/* Interactive Chips & Pills */
+[data-theme="light"] .bg-slate-900,
+[data-theme="light"] .bg-slate-900\/90,
+.light .bg-slate-900,
+.light .bg-slate-900\/90 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Active and Hover Rows */
+[data-theme="light"] tr.hover\:bg-\[\#12192b\]:hover,
+[data-theme="light"] .hover\:bg-\[\#12192b\]:hover,
+.light tr.hover\:bg-\[\#12192b\]:hover,
+.light .hover\:bg-\[\#12192b\]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Subnav Navigation Tabs */
+[data-theme="light"] nav button.bg-slate-800,
+.light nav button.bg-slate-800 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] nav button.text-slate-400,
+.light nav button.text-slate-400 {
+  color: #64748b !important;
+}
+
+[data-theme="light"] nav button.text-slate-400:hover,
+.light nav button.text-slate-400:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Brand Wordmark in Header */
+[data-theme="light"] header .text-white,
+.light header .text-white {
+  color: #0f172a !important;
+}
+
+/* Top "Verify All" Primary Action Button */
+[data-theme="light"] button.bg-slate-100,
+.light button.bg-slate-100 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.1) !important;
+}
+
+[data-theme="light"] button.bg-slate-100:hover,
+.light button.bg-slate-100:hover {
+  background-color: #1e293b !important;
+}
+
+[data-theme="light"] button.bg-slate-100 svg,
+.light button.bg-slate-100 svg {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+/* Zero Trust Evaluation Gate - GRANTED Panel */
+[data-theme="light"] .bg-\[\#081711\],
+.light .bg-\[\#081711\] {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #14532d !important;
+}
+
+[data-theme="light"] .bg-\[\#050e0a\],
+.light .bg-\[\#050e0a\] {
+  background-color: #ffffff !important;
+  border-color: #bbf7d0 !important;
+  color: #166534 !important;
+}
+
+[data-theme="light"] .bg-emerald-950\/60,
+.light .bg-emerald-950\/60 {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+/* Zero Trust Evaluation Gate - DENIED & REVOKED Panels */
+[data-theme="light"] .bg-\[\#160a0f\],
+[data-theme="light"] .bg-\[\#1d070e\],
+.light .bg-\[\#160a0f\],
+.light .bg-\[\#1d070e\] {
+  background-color: #fff1f2 !important;
+  border-color: #fda4af !important;
+  color: #881337 !important;
+}
+
+[data-theme="light"] .bg-\[\#0c0508\],
+[data-theme="light"] .bg-\[\#0c0306\],
+.light .bg-\[\#0c0508\],
+.light .bg-\[\#0c0306\] {
+  background-color: #ffffff !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
+}
+
+[data-theme="light"] .bg-rose-950,
+[data-theme="light"] .bg-rose-950\/60,
+.light .bg-rose-950,
+.light .bg-rose-950\/60 {
+  background-color: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #9f1239 !important;
+}
+
+/* Mutation Lab & Scenarios in Light Mode */
+[data-theme="light"] .bg-\[\#0b101c\],
+.light .bg-\[\#0b101c\] {
+  background-color: #f8fafc !important;
+}
+
+[data-theme="light"] .hover\:border-slate-700:hover,
+.light .hover\:border-slate-700:hover {
+  border-color: #94a3b8 !important;
+}
+
+/* Notice & Alert Strips */
+[data-theme="light"] .bg-amber-950\/20,
+.light .bg-amber-950\/20 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+/* Audit Table Row Highlights in Light Mode */
+[data-theme="light"] .bg-\[\#06140d\],
+.light .bg-\[\#06140d\] {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+
+[data-theme="light"] .bg-\[\#18080c\],
+.light .bg-\[\#18080c\] {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
+}
+
+[data-theme="light"] .bg-\[\#181106\],
+.light .bg-\[\#181106\] {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+/* Badges and Chips */
+[data-theme="light"] .bg-emerald-500\/10,
+.light .bg-emerald-500\/10 {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+[data-theme="light"] .bg-amber-500\/10,
+.light .bg-amber-500\/10 {
+  background-color: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
+}
+
+[data-theme="light"] .bg-rose-500\/10,
+[data-theme="light"] .bg-rose-500\/15,
+.light .bg-rose-500\/10,
+.light .bg-rose-500\/15 {
+  background-color: #fff1f2 !important;
+  color: #be123c !important;
+  border-color: #fecdd3 !important;
+}
+
+[data-theme="light"] .bg-sky-500\/10,
+.light .bg-sky-500\/10 {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+  border-color: #bae6fd !important;
+}
+
+/* Posture & State Badges High-Contrast Refinements */
+[data-theme="light"] .bg-slate-800.text-slate-300,
+.light .bg-slate-800.text-slate-300 {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Interactive Walkthrough Cards & Buttons */
+[data-theme="light"] .bg-\[\#131a2b\],
+.light .bg-\[\#131a2b\] {
+  background-color: #f0f9ff !important;
+  border-color: #7dd3fc !important;
+}
+
+[data-theme="light"] button.bg-slate-900,
+.light button.bg-slate-900 {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] button.bg-slate-900:hover,
+.light button.bg-slate-900:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Attestation Subtitle Text in Certificates */
+[data-theme="light"] .bg-\[\#081711\] .text-white,
+.light .bg-\[\#081711\] .text-white {
+  color: #064e3b !important;
+}
+
+[data-theme="light"] .bg-\[\#160a0f\] .text-white,
+[data-theme="light"] .bg-\[\#1d070e\] .text-white,
+.light .bg-\[\#160a0f\] .text-white,
+.light .bg-\[\#1d070e\] .text-white {
+  color: #881337 !important;
+}
+
+/* Active Mutation Scenario Cards */
+[data-theme="light"] .bg-rose-950\/30,
+.light .bg-rose-950\/30 {
+  background-color: #ffe4e6 !important;
+  border-color: #f43f5e !important;
+  color: #9f1239 !important;
+}
+
+/* Missing Event Box in Evidence Ledger */
+[data-theme="light"] .bg-black\/40,
+.light .bg-black\/40 {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: #090d16;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #1e293b;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #334155;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track,
+.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
