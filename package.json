@@ -7,14 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node scripts/test_engine.mjs",
+    "test": "vitest run && node scripts/test_engine.mjs",
+    "test:unit": "vitest run",
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
     "verify": "node scripts/verify_ledger.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "concurrently": "^10.0.6",
+    "hono": "^4.13.14",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -26,6 +31,7 @@
     "oxlint": "^1.81.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "^5.0.5"
   }
 }

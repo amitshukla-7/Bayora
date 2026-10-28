@@ -22,9 +22,12 @@ export function canonicalJson(data: any): string {
   }
 
   const keys = Object.keys(data).sort();
-  const entries = keys.map((key) => {
-    return `${JSON.stringify(key)}:${canonicalJson(data[key])}`;
-  });
+  const entries: string[] = [];
+  for (const key of keys) {
+    if (data[key] !== undefined) {
+      entries.push(`${JSON.stringify(key)}:${canonicalJson(data[key])}`);
+    }
+  }
 
   return '{' + entries.join(',') + '}';
 }

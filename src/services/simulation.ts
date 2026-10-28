@@ -196,45 +196,38 @@ export const MUTATION_DEFINITIONS: Record<string, MutationScenarioDefinition> = 
 export async function executeSimulatedTest(
   testId: TestId,
   config: SimulatedConfig,
-  forcedDelayMs?: number
+  forcedDelayMs?: number,
+  guaranteeDigest?: string
 ): Promise<TestExecutionResult> {
   const guaranteeId = TEST_TO_GUARANTEE[testId];
   const startTime = performance.now();
 
-  // Simulated execution latency between 350ms and 550ms to emulate realistic I/O & probe runs
-  const simulatedDelay = forcedDelayMs !== undefined ? forcedDelayMs : Math.floor(Math.random() * 200) + 350;
-  if (simulatedDelay > 0) {
-    await new Promise((resolve) => setTimeout(resolve, simulatedDelay));
+  // If a forced delay is explicitly provided (e.g. for synthetic timing tests), honor it
+  if (forcedDelayMs !== undefined && forcedDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, forcedDelayMs));
   }
 
   const endTime = performance.now();
-  const durationMs = Math.round(endTime - startTime);
+  const durationMs = Math.max(0.01, Number((endTime - startTime).toFixed(2)));
   const evaluatedAt = new Date().toISOString();
+  let status: 'PASS' | 'FAIL' = 'PASS';
+  let message = '';
+  let details = '';
 
   switch (testId) {
     case 'T01': {
       // G1: Storage Isolation (redMounts check)
       const hasBlueMount = config.redMounts.some((m) => m.includes('/opt/blue') || m === '/');
       if (hasBlueMount) {
-        return {
-          testId,
-          guaranteeId,
-          status: 'FAIL',
-          durationMs,
-          message: 'Boundary violation: Red container contains unauthorized mount to Blue volume or root directory.',
-          details: `Active red mounts: [${config.redMounts.join(', ')}]. Expected isolation to /opt/red/* only. Inode leak detected.`,
-          evaluatedAt,
-        };
+        status = 'FAIL';
+        message = 'Boundary violation: Red container contains unauthorized mount to Blue volume or root directory.';
+        details = `Active red mounts: [${config.redMounts.join(', ')}]. Expected isolation to /opt/red/* only. Inode leak detected.`;
+      } else {
+        status = 'PASS';
+        message = 'Storage isolation verified: Mount points confined strictly to /opt/red/workspace.';
+        details = `Verified ${config.redMounts.length} mount path(s). No overlapping inode boundaries detected with blue tenant.`;
       }
-      return {
-        testId,
-        guaranteeId,
-        status: 'PASS',
-        durationMs,
-        message: 'Storage isolation verified: Mount points confined strictly to /opt/red/workspace.',
-        details: `Verified ${config.redMounts.length} mount path(s). No overlapping inode boundaries detected with blue tenant.`,
-        evaluatedAt,
-      };
+      break;
     }
 
     case 'T02': {
@@ -243,73 +236,43 @@ export async function executeSimulatedTest(
         (net) => net.includes('blue') || net.includes('host') || net.includes('admin')
       );
       if (hasBlueNet) {
-        return {
-          testId,
-          guaranteeId,
-          status: 'FAIL',
-          durationMs,
-          message: 'Network boundary violation: Red runner container joined Blue private subnet.',
-          details: `Attached networks: [${config.redNetworks.join(', ')}]. Cross-tenant L2/L3 packet traversal detected.`,
-          evaluatedAt,
-        };
+        status = 'FAIL';
+        message = 'Network boundary violation: Red runner container joined Blue private subnet.';
+        details = `Attached networks: [${config.redNetworks.join(', ')}]. Cross-tenant L2/L3 packet traversal detected.`;
+      } else {
+        status = 'PASS';
+        message = 'Network boundary intact: Ingress/egress isolated to dedicated red runner bridge.';
+        details = `Active networks: [${config.redNetworks.join(', ')}]. ARP and routing isolation verified.`;
       }
-      return {
-        testId,
-        guaranteeId,
-        status: 'PASS',
-        durationMs,
-        message: 'Network boundary intact: Ingress/egress isolated to dedicated red runner bridge.',
-        details: `Active networks: [${config.redNetworks.join(', ')}]. ARP and routing isolation verified.`,
-        evaluatedAt,
-      };
+      break;
     }
 
     case 'T03': {
       // G3: API Authorization (storageApiAuthz check)
       if (config.storageApiAuthz === 'relaxed') {
-        return {
-          testId,
-          guaranteeId,
-          status: 'FAIL',
-          durationMs,
-          message: 'API Authorization breach: Storage API is operating in RELAXED authorization mode.',
-          details: `Scope checks bypassed. Synthetic unauthorized GET request returned HTTP 200 OK with ground-truth payload.`,
-          evaluatedAt,
-        };
+        status = 'FAIL';
+        message = 'API Authorization breach: Storage API is operating in RELAXED authorization mode.';
+        details = `Scope checks bypassed. Synthetic unauthorized GET request returned HTTP 200 OK with ground-truth payload.`;
+      } else {
+        status = 'PASS';
+        message = 'Storage API authorization verified: Strict cryptographic token validation active.';
+        details = `Unauthorized synthetic probe rejected with HTTP 403 Forbidden. Signed JWT tenant claims enforced.`;
       }
-      return {
-        testId,
-        guaranteeId,
-        status: 'PASS',
-        durationMs,
-        message: 'Storage API authorization verified: Strict cryptographic token validation active.',
-        details: `Unauthorized synthetic probe rejected with HTTP 403 Forbidden. Signed JWT tenant claims enforced.`,
-        evaluatedAt,
-      };
+      break;
     }
 
     case 'T04': {
       // G4: Model Session Confidentiality (gatewaySessionIsolation check)
       if (config.gatewaySessionIsolation === 'shared') {
-        return {
-          testId,
-          guaranteeId,
-          status: 'FAIL',
-          durationMs,
-          message: 'Canary leak detected: Model gateway context cache is configured with SHARED session pool.',
-          details: `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query!`,
-          evaluatedAt,
-        };
+        status = 'FAIL';
+        message = 'Canary leak detected: Model gateway context cache is configured with SHARED session pool.';
+        details = `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query!`;
+      } else {
+        status = 'PASS';
+        message = 'Canary test passed: Zero context bleed between Blue evaluation and Red test sessions.';
+        details = `Injected 128-bit canary payload (CANARY-7X9B-4D1E-8F2A) into Blue tenant. Red harness prefix queries returned zero matches (0 ppm leakage).`;
       }
-      return {
-        testId,
-        guaranteeId,
-        status: 'PASS',
-        durationMs,
-        message: 'Canary test passed: Zero context bleed between Blue evaluation and Red test sessions.',
-        details: `Injected 128-bit canary payload (CANARY-7X9B-4D1E-8F2A) into Blue tenant. Red harness prefix queries returned zero matches (0 ppm leakage).`,
-        evaluatedAt,
-      };
+      break;
     }
 
     case 'T05': {
@@ -321,28 +284,29 @@ export async function executeSimulatedTest(
       if (!flags.dropCapabilities.includes('ALL')) issues.push('Linux capabilities not dropped to ALL');
 
       if (issues.length > 0) {
-        return {
-          testId,
-          guaranteeId,
-          status: 'FAIL',
-          durationMs,
-          message: 'Workload hardening failure: Container security parameters weakened.',
-          details: issues.join('; '),
-          evaluatedAt,
-        };
+        status = 'FAIL';
+        message = 'Workload hardening failure: Container security parameters weakened.';
+        details = issues.join('; ');
+      } else {
+        status = 'PASS';
+        message = 'Workload hardening verified: Read-only rootfs, dropped capabilities, and default seccomp profile enforced.';
+        details = `ReadOnlyRoot=true, Capabilities=[${flags.dropCapabilities.join(',')}], NoNewPrivileges=true, Seccomp=${flags.seccompProfile}.`;
       }
-      return {
-        testId,
-        guaranteeId,
-        status: 'PASS',
-        durationMs,
-        message: 'Workload hardening verified: Read-only rootfs, dropped capabilities, and default seccomp profile enforced.',
-        details: `ReadOnlyRoot=true, Capabilities=[${flags.dropCapabilities.join(',')}], NoNewPrivileges=true, Seccomp=${flags.seccompProfile}.`,
-        evaluatedAt,
-      };
+      break;
     }
 
     default:
       throw new Error(`Unknown test ID: ${testId}`);
   }
+
+  return {
+    testId,
+    guaranteeId,
+    guaranteeDigest: guaranteeDigest || '',
+    status,
+    durationMs,
+    message,
+    details,
+    evaluatedAt,
+  };
 }

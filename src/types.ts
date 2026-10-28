@@ -45,6 +45,7 @@ export interface GuaranteeDefinition {
 export interface TestExecutionResult {
   testId: TestId;
   guaranteeId: GuaranteeId;
+  guaranteeDigest?: string;
   status: 'PASS' | 'FAIL';
   durationMs: number;
   message: string;
