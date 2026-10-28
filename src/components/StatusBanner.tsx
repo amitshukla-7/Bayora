@@ -80,9 +80,9 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
         };
       case 'STALE':
         return {
-          label: 'CONFIG DRIFT',
+          label: 'CHANGED',
           badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-          summary: `Configuration drifted for [${affectedGuarantees.join(', ')}]. Selective retest required.`,
+          summary: `Configuration changed for [${affectedGuarantees.join(', ')}]. Selective retest required.`,
           icon: <AlertTriangle className="w-4 h-4 text-amber-400" />,
         };
       case 'BREACHED':
@@ -242,7 +242,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
 
             {/* Live telemetry counters */}
             <div className="hidden lg:flex items-center gap-3 px-3 py-1 rounded-md bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-400">
-              <span>Probes: <strong className="text-slate-200">{testsPassedCount}/{totalTestsCount}</strong></span>
+              <span>Checks: <strong className="text-slate-200">{testsPassedCount}/{totalTestsCount}</strong></span>
               <span className="text-slate-700">|</span>
               <span>Latency: <strong className="text-slate-200">{lastRunDurationMs !== null ? `${lastRunDurationMs}ms` : '—'}</strong></span>
               <span className="text-slate-700">|</span>
@@ -257,30 +257,30 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
                 {showFullHash ? currentFingerprint : `${currentFingerprint.slice(0, 10)}...`}
               </span>
               <span className="text-[10px] text-slate-500">
-                ({isMatchVerified ? 'Baseline' : 'Drifted'})
+                ({isMatchVerified ? 'Baseline' : 'Changed'})
               </span>
               <button
                 onClick={() => setShowFullHash(!showFullHash)}
-                className="text-[10px] text-slate-500 hover:text-slate-300 transition px-1"
+                className="text-[10px] text-slate-500 hover:text-slate-300 transition px-1 focus-visible:ring-1 focus-visible:ring-sky-400 focus:outline-none"
                 title="Toggle hash format"
               >
                 {showFullHash ? 'Short' : 'Full'}
               </button>
               <button
                 onClick={handleCopy}
-                className="text-slate-500 hover:text-slate-300 transition"
+                className="text-slate-500 hover:text-slate-300 transition focus-visible:ring-1 focus-visible:ring-sky-400 focus:outline-none"
                 title="Copy SHA-256 hash"
               >
                 {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               </button>
             </div>
 
-            {/* Selective Retest (if drifted) */}
+            {/* Selective Retest (if changed) */}
             {selectiveTestsCount > 0 && (
               <button
                 onClick={onRunSelectiveRetest}
                 disabled={isRunning}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 disabled:opacity-50 transition focus-visible:ring-2 focus-visible:ring-amber-400 focus:outline-none"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}`} />
                 Retest ({selectiveTestsCount})
@@ -291,10 +291,10 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
             <button
               onClick={onRunFullVerification}
               disabled={isRunning}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-mono font-semibold bg-slate-100 hover:bg-white text-slate-900 disabled:opacity-50 transition shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-mono font-semibold bg-slate-100 hover:bg-white text-slate-900 disabled:opacity-50 transition shadow-sm focus-visible:ring-2 focus-visible:ring-sky-400 focus:outline-none"
             >
               <FileCheck2 className="w-3.5 h-3.5 text-slate-900" />
-              <span>Verify All (5 Probes)</span>
+              <span>Verify all (5 checks)</span>
             </button>
           </div>
         </div>

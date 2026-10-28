@@ -6,6 +6,11 @@ AI red-team evaluations execute untrusted adversarial code alongside sensitive e
 
 AI explains, math decides: the allow/deny verdict is computed by deterministic code and is never influenced by an LLM.
 
+**Live Deployment (Cached Mode)**: https://bayora-eval-assurance.vercel.app  
+*Hosted note: The hosted page operates in Cached mode because public browsers cannot connect to a presenter's localhost model. Live mode runs on the presenter's machine with local Ollama.*
+
+![Bayora Architecture and Workflow](./public/bayora_end_to_end_workflow.png)
+
 ---
 
 ## Capabilities and Scope

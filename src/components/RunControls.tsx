@@ -30,11 +30,11 @@ export const RunControls: React.FC<RunControlsProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-slate-100">
-              Automated Probe Execution Engine
+              Automated check execution engine
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Continuous verification orchestrator. Selective retest targets only the probes whose underlying guarantee drifted.
+            Continuous verification orchestrator. Selective retest targets only checks whose underlying guarantee changed.
           </p>
         </div>
 
@@ -44,15 +44,15 @@ export const RunControls: React.FC<RunControlsProps> = ({
           <button
             onClick={onRunSelectiveRetest}
             disabled={isRunning || selectiveCount === 0}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition ${
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition focus-visible:ring-2 focus-visible:ring-amber-400 focus:outline-none ${
               selectiveCount > 0
                 ? 'bg-amber-600/90 hover:bg-amber-500 text-white shadow-sm'
                 : 'bg-slate-900 border border-slate-800 text-slate-500 cursor-not-allowed'
             }`}
             title={
               selectiveCount > 0
-                ? `Execute probes for drifted guarantees: [${selectiveTests.join(', ')}]`
-                : 'No configuration drift detected'
+                ? `Execute checks for changed guarantees: [${selectiveTests.join(', ')}]`
+                : 'No configuration change detected'
             }
           >
             {isRunning && currentRunningTest && selectiveTests.includes(currentRunningTest) ? (
@@ -60,7 +60,7 @@ export const RunControls: React.FC<RunControlsProps> = ({
             ) : (
               <RotateCw className="w-3.5 h-3.5 text-amber-200" />
             )}
-            Run Selective Retest ({selectiveCount} {selectiveCount === 1 ? 'probe' : 'probes'}
+            Run selective retest ({selectiveCount} {selectiveCount === 1 ? 'check' : 'checks'}
             {selectiveCount > 0 ? `: ${selectiveTests.join(', ')}` : ''})
           </button>
 
@@ -68,14 +68,14 @@ export const RunControls: React.FC<RunControlsProps> = ({
           <button
             onClick={onRunFullVerification}
             disabled={isRunning}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium bg-slate-100 hover:bg-white text-slate-900 disabled:opacity-50 transition shadow-sm"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium bg-slate-100 hover:bg-white text-slate-900 disabled:opacity-50 transition shadow-sm focus-visible:ring-2 focus-visible:ring-sky-400 focus:outline-none"
           >
             {isRunning && !currentRunningTest ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-900" />
             ) : (
               <Play className="w-3.5 h-3.5 text-slate-900 fill-slate-900" />
             )}
-            Run Full Verification ({testsToRunCount} Probes: T01–T05)
+            Run full verification ({testsToRunCount} checks: T01–T05)
           </button>
         </div>
       </div>
@@ -86,7 +86,7 @@ export const RunControls: React.FC<RunControlsProps> = ({
           <div className="flex items-center justify-between text-xs font-mono mb-1.5">
             <span className="flex items-center gap-2 text-sky-300">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Probing active boundary: <strong className="text-white">{currentRunningTest}</strong>
+              Testing active boundary: <strong className="text-white">{currentRunningTest}</strong>
               {currentRunningTest === 'T04' && probeTrialProgress ? (
                 <span className="px-1.5 py-0.5 rounded bg-sky-950 border border-sky-800 text-sky-300 text-[11px] font-semibold">
                   Trial {probeTrialProgress.current} of {probeTrialProgress.total}

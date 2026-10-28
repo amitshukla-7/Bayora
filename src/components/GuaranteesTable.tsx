@@ -64,7 +64,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
           )}
           {staleCount > 0 && (
             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
-              Drifted: <strong>{staleCount}</strong>
+              Changed: <strong>{staleCount}</strong>
             </span>
           )}
         </div>
@@ -76,7 +76,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
           <thead>
             <tr className="bg-[#070b14] border-b border-slate-800 text-slate-400 font-mono uppercase text-[11px] tracking-wider">
               <th className="py-2.5 px-4 font-medium">Guarantee</th>
-              <th className="py-2.5 px-4 font-medium">Automated Probe</th>
+              <th className="py-2.5 px-4 font-medium">Automated check</th>
               <th className="py-2.5 px-4 font-medium">Target Scope</th>
               <th className="py-2.5 px-4 font-medium">Evaluation Status</th>
               <th className="py-2.5 px-4 font-medium">State Freshness</th>
@@ -151,7 +151,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
                     {isStale ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30">
                         <RotateCw className="w-3 h-3 text-amber-400 animate-spin" />
-                        Drifted
+                        Changed
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
@@ -235,11 +235,11 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
                     <button
                       onClick={() => onRunSingleTest(g.testId)}
                       disabled={isRunning}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-mono bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 transition"
-                      title={`Run probe ${g.testId}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-mono bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 transition focus-visible:ring-2 focus-visible:ring-sky-400 focus:outline-none"
+                      title={`Run check ${g.testId}`}
                     >
                       <Play className="w-3 h-3 text-sky-400" />
-                      Probe
+                      Check
                     </button>
                   </td>
                 </tr>

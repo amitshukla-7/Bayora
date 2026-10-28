@@ -19,3 +19,12 @@
 ## DEC-005: Real Paired Canary Probe for G4 and Vulnerable Test Gateway
 - **Decision**: Replace config-flag check for G4 with 5 paired trials sequentially executed against our built-in test gateway. Session A is injected with a random canary token (`BYR-xxxxxxxx`); Session B is asked a direct extraction question. In `per-session` mode, context is isolated (0/5 leaks observed, PASS). In `shared-cache` mode, the multi-tenant context pool is shared (5/5 leaks observed in positive control, FAIL). When local Ollama model server (`llama3.2:3b`) is unavailable or offline, the system automatically uses verified pre-recorded cache with tag `Cached: recorded from llama3.2:3b`.
 - **Rationale**: Demonstrates a real behavioural boundary check with positive and negative controls while guaranteeing zero demo failures if local model is offline.
+
+## DEC-006: Advisory AI Incident Analyst Grounded in Cryptographic Evidence
+- **Decision**: Incident Analyst output is strictly structured and validated via Zod schema `{summary, whatChanged, attackerImpact, fixSteps[], evidenceRefs[]}`. Enforces that every cited evidence reference must be present in the provided input evidence rows. If the local model returns invalid JSON or hallucinated references, one retry is executed, followed by deterministic template fallback. The panel carries the mandatory disclaimer: "The verdict is computed deterministically and is not influenced by this analysis."
+- **Rationale**: Protects against small local LLM hallucinations while providing explanatory depth without letting AI control security gates.
+
+## DEC-007: Plain-Language Assurance Statement (AI for All)
+- **Decision**: Build a single printable page (`@media print` CSS) summarizing live sandbox state, boundary guarantees, recent configuration modifications, and independent offline verification commands for non-specialists, auditors, and regulators. The facts are strictly fixed and grounded in the hash chain; the UI allows independent verification via `npm run verify -- bundle.json`.
+- **Rationale**: Solves the AI governance barrier for small teams and non-technical stakeholders without requiring deep infrastructure expertise.
+

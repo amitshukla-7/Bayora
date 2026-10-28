@@ -85,7 +85,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
 
         <button
           onClick={handleRequest}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm focus-visible:ring-2 focus-visible:ring-sky-400 focus:outline-none"
         >
           <Terminal className="w-3.5 h-3.5" />
           Request Evaluation Access
@@ -118,7 +118,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
                     Evaluation Access Revoked (Fail-Closed Lockdown)
                   </div>
                   <div className="text-sm font-semibold text-white">
-                    Access Revoked: Environment Drifted to {state}
+                    Access Revoked: Environment Changed to {state}
                   </div>
                 </div>
               </div>
@@ -265,7 +265,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
               <div className="bg-[#0c0508] p-2.5 rounded border border-rose-900/60 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="font-mono text-amber-300 flex items-center gap-1.5 text-[11px]">
                   <Zap className="w-3.5 h-3.5" />
-                  Required Remedial Probes: [{evaluationResult.requiredTests.join(', ')}]
+                  Required Remedial Checks: [{evaluationResult.requiredTests.join(', ')}]
                 </div>
                 <span className="text-[11px] text-slate-400">
                   Remediate baseline and run retest suite above to restore verification.
