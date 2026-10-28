@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -5,6 +6,9 @@ import {
   Shield,
   Play,
   RotateCw,
+  ChevronDown,
+  ChevronRight,
+  Bot,
 } from 'lucide-react';
 import type { GuaranteeDefinition, GuaranteeId, TestExecutionResult, TestId } from '../types';
 
@@ -23,6 +27,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
   isRunning,
   onRunSingleTest,
 }) => {
+  const [showTrials, setShowTrials] = useState<boolean>(true);
 
   const passedCount = guarantees.filter((g) => testResults[g.testId]?.status === 'PASS').length;
   const failedCount = guarantees.filter((g) => testResults[g.testId]?.status === 'FAIL').length;
@@ -36,7 +41,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-sky-400" />
             <h2 className="text-sm font-semibold text-slate-100">
-              Isolation Guarantees & Verification Policy Matrix
+              Isolation Guarantees and Verification Policy Matrix
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -83,6 +88,7 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
             {guarantees.map((g) => {
               const res = testResults[g.testId];
               const isStale = staleGuarantees.has(g.id);
+              const hasTrials = Boolean(res?.trials && res.trials.length > 0);
 
               return (
                 <tr
@@ -158,13 +164,66 @@ export const GuaranteesTable: React.FC<GuaranteesTableProps> = ({
                   {/* Diagnostic Details */}
                   <td className="py-3 px-4 align-top max-w-sm">
                     {res ? (
-                      <div>
+                      <div className="space-y-1.5">
                         <div className={`font-medium text-[11px] ${res.status === 'PASS' ? 'text-slate-300' : 'text-rose-300 font-semibold'}`}>
                           {res.message}
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate" title={res.details}>
+                        <div className="text-[10px] text-slate-400 font-mono leading-relaxed">
                           {res.details}
                         </div>
+
+                        {/* Model / Gateway Evidence tag for G4 */}
+                        {res.tag && (
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-950/60 border border-sky-800 text-sky-300">
+                              <Bot className="w-3 h-3 text-sky-400" />
+                              {res.tag}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Paired Trials Breakdown Drawer for G4 */}
+                        {hasTrials && (
+                          <div className="mt-2 pt-1 border-t border-slate-800/60">
+                            <button
+                              onClick={() => setShowTrials(!showTrials)}
+                              className="inline-flex items-center gap-1 text-[10px] font-mono text-sky-400 hover:text-sky-300 transition"
+                            >
+                              {showTrials ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                              {showTrials ? 'Hide' : 'Show'} 5 paired trials ({res.trials?.filter((t) => t.leaked).length || 0} leaks)
+                            </button>
+
+                            {showTrials && res.trials && (
+                              <div className="mt-1.5 space-y-1 bg-[#090d16] p-2 rounded border border-slate-800 text-[10px] font-mono">
+                                {res.trials.map((t) => (
+                                  <div
+                                    key={t.trialNumber}
+                                    className={`p-1.5 rounded border ${
+                                      t.leaked
+                                        ? 'bg-rose-950/30 border-rose-800/60 text-rose-200'
+                                        : 'bg-slate-900/60 border-slate-800/60 text-slate-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between font-semibold">
+                                      <span>Trial {t.trialNumber} of 5 · {t.canaryToken}</span>
+                                      <span className={t.leaked ? 'text-rose-400' : 'text-emerald-400'}>
+                                        {t.leaked ? 'LEAK OBSERVED' : 'PASS'} ({t.durationMs}ms)
+                                      </span>
+                                    </div>
+                                    {t.excerpt && (
+                                      <div className="text-[10px] text-rose-300 mt-1 italic break-all">
+                                        Excerpt: "{t.excerpt}"
+                                      </div>
+                                    )}
+                                    <div className="text-[9px] text-slate-500 mt-0.5 truncate" title={t.transcriptSha256}>
+                                      SHA-256: {t.transcriptSha256}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-[11px] text-slate-500 italic">No telemetry recorded yet.</span>

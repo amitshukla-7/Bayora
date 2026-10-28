@@ -9,6 +9,7 @@ interface RunControlsProps {
   onRunFullVerification: () => void;
   onRunSelectiveRetest: () => void;
   progressPercent: number;
+  probeTrialProgress?: { current: number; total: number } | null;
 }
 
 export const RunControls: React.FC<RunControlsProps> = ({
@@ -19,6 +20,7 @@ export const RunControls: React.FC<RunControlsProps> = ({
   onRunFullVerification,
   onRunSelectiveRetest,
   progressPercent,
+  probeTrialProgress,
 }) => {
   const selectiveCount = selectiveTests.length;
 
@@ -84,7 +86,14 @@ export const RunControls: React.FC<RunControlsProps> = ({
           <div className="flex items-center justify-between text-xs font-mono mb-1.5">
             <span className="flex items-center gap-2 text-sky-300">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Probing active boundary: <strong className="text-white">{currentRunningTest}</strong>...
+              Probing active boundary: <strong className="text-white">{currentRunningTest}</strong>
+              {currentRunningTest === 'T04' && probeTrialProgress ? (
+                <span className="px-1.5 py-0.5 rounded bg-sky-950 border border-sky-800 text-sky-300 text-[11px] font-semibold">
+                  Trial {probeTrialProgress.current} of {probeTrialProgress.total}
+                </span>
+              ) : (
+                <span>...</span>
+              )}
             </span>
             <span className="text-slate-400">{Math.round(progressPercent)}% complete</span>
           </div>

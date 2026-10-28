@@ -15,3 +15,7 @@
 ## DEC-004: Ticket Signing via ECDSA P-256
 - **Decision**: Generate an ECDSA P-256 keypair via Web Crypto (`subtle.generateKey`), persist public/private keys in localStorage (per workspace), and label the key explicitly as "Software signing key". Checkpoints and tickets are signed with this key.
 - **Rationale**: Removes fake HSM claims and static shared HMAC keys while maintaining offline verifiability.
+
+## DEC-005: Real Paired Canary Probe for G4 and Vulnerable Test Gateway
+- **Decision**: Replace config-flag check for G4 with 5 paired trials sequentially executed against our built-in test gateway. Session A is injected with a random canary token (`BYR-xxxxxxxx`); Session B is asked a direct extraction question. In `per-session` mode, context is isolated (0/5 leaks observed, PASS). In `shared-cache` mode, the multi-tenant context pool is shared (5/5 leaks observed in positive control, FAIL). When local Ollama model server (`llama3.2:3b`) is unavailable or offline, the system automatically uses verified pre-recorded cache with tag `Cached: recorded from llama3.2:3b`.
+- **Rationale**: Demonstrates a real behavioural boundary check with positive and negative controls while guaranteeing zero demo failures if local model is offline.

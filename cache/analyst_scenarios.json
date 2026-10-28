@@ -1,0 +1,57 @@
+{
+  "M1": {
+    "summary": "Storage API authorization check operates in relaxed unauthenticated mode.",
+    "whatChanged": "storageApiAuthz changed from strict to relaxed.",
+    "attackerImpact": "Adversary in red harness can make unauthenticated GET requests to retrieve protected evaluation datasets without signed tokens.",
+    "fixSteps": [
+      "Restore storageApiAuthz to strict in configuration.",
+      "Re-enable cryptographic JWT token validation on storage proxy.",
+      "Execute selective retest T03 to verify access denial."
+    ],
+    "evidenceRefs": ["ev-t03-storage-scope-assertion"]
+  },
+  "M2": {
+    "summary": "Cross-tenant filesystem mount leak exposes blue evaluation data to red runner.",
+    "whatChanged": "redMounts expanded to include /opt/blue/data.",
+    "attackerImpact": "Adversary container can directly read ground-truth rubrics and benchmark answer keys from the blue tenant directory.",
+    "fixSteps": [
+      "Unmount /opt/blue/data from red container configuration.",
+      "Enforce mount namespace boundary confined strictly to /opt/red/workspace.",
+      "Execute selective retest T01 to verify inode isolation."
+    ],
+    "evidenceRefs": ["ev-t01-filesystem-boundary-check"]
+  },
+  "M3": {
+    "summary": "Red adversary container attached to blue control network bridge.",
+    "whatChanged": "redNetworks attached to blue-private-net bridge.",
+    "attackerImpact": "Untrusted test payloads can route L2/L3 packets to internal evaluation control planes and admin ports.",
+    "fixSteps": [
+      "Detach red container from blue-private-net.",
+      "Restore isolated network red-isolated-net only.",
+      "Execute selective retest T02 to confirm network microsegmentation."
+    ],
+    "evidenceRefs": ["ev-t02-network-boundary-scan"]
+  },
+  "M4": {
+    "summary": "Model gateway context cache configured with shared multi-tenant pool.",
+    "whatChanged": "gatewaySessionIsolation toggled from per-session to shared-cache.",
+    "attackerImpact": "Adversary in red harness can prompt model proxy to retrieve leaked blue canary tokens across sessions.",
+    "fixSteps": [
+      "Reconfigure model gateway sessionIsolation to per-session.",
+      "Flush shared KV prefix context pool.",
+      "Execute selective canary token leak probe T04."
+    ],
+    "evidenceRefs": ["ev-t04-canary-leak-trial-1", "ev-t04-canary-leak-trial-2"]
+  },
+  "M5": {
+    "summary": "Container workload security hardening context relaxed.",
+    "whatChanged": "readOnlyRoot disabled and excess Linux capabilities retained (CAP_SYS_ADMIN).",
+    "attackerImpact": "Adversary can write arbitrary executables to container root filesystem and attempt privileged host escapes.",
+    "fixSteps": [
+      "Set readOnlyRoot to true.",
+      "Drop all Linux capabilities to ALL.",
+      "Execute selective retest T05 to verify container hardening."
+    ],
+    "evidenceRefs": ["ev-t05-container-hardening-check"]
+  }
+}

@@ -250,11 +250,11 @@ export const MutationLab: React.FC<MutationLabProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between text-xs font-mono font-semibold mb-1">
-                  <span className={isM4Active ? 'text-rose-400' : 'text-slate-200'}>M4: Gateway Cache</span>
+                  <span className={isM4Active ? 'text-rose-400' : 'text-slate-200'}>M4: Switch gateway to shared cache</span>
                   <Bot className={`w-3.5 h-3.5 ${isM4Active ? 'text-rose-400' : 'text-slate-500'}`} />
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  Configure inference gateway context cache to shared multi-tenant pool.
+                  Routine performance optimization: switch gateway context pool to shared cache.
                 </p>
               </div>
               <div className="text-[10px] font-mono text-sky-400 mt-2 font-medium">

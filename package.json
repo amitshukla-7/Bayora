@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k \"npm run server\" \"vite\"",
+    "server": "node --experimental-strip-types server/index.mjs",
+    "record-cache": "node --experimental-strip-types scripts/record_cache.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run && node scripts/test_engine.mjs",

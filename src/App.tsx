@@ -79,6 +79,7 @@ export function App() {
   // Runner execution state
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [currentRunningTest, setCurrentRunningTest] = useState<TestId | null>(null);
+  const [probeTrialProgress, setProbeTrialProgress] = useState<{ current: number; total: number } | null>(null);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
 
@@ -317,7 +318,16 @@ export function App() {
         guarantee_id: gid,
       });
 
-      const res = await executeSimulatedTest(tid, config);
+      const res = await executeSimulatedTest(
+        tid,
+        config,
+        undefined,
+        currentDigests?.[gid],
+        (trialNumber, total) => {
+          setProbeTrialProgress({ current: trialNumber, total });
+        }
+      );
+      setProbeTrialProgress(null);
       currentResultsCopy[tid] = res;
       setTestResults({ ...currentResultsCopy });
 
@@ -331,6 +341,22 @@ export function App() {
         status: res.status,
         duration_ms: res.durationMs,
         details: res.details,
+        ...(res.trials
+          ? {
+              trials_total: res.totalTrials || res.trials.length,
+              leak_count: res.leakCount ?? (res.status === 'FAIL' ? 5 : 0),
+              source: res.source,
+              tag: res.tag,
+              trials: res.trials.map((t) => ({
+                trial: t.trialNumber,
+                leaked: t.leaked,
+                duration_ms: t.durationMs,
+                canary_token: t.canaryToken,
+                excerpt: t.excerpt,
+                transcript_sha256: t.transcriptSha256,
+              })),
+            }
+          : {}),
       });
 
       setProgressPercent(((i + 1) / testsToRun.length) * 100);
@@ -875,6 +901,7 @@ export function App() {
             onRunFullVerification={handleRunFullVerification}
             onRunSelectiveRetest={handleRunSelectiveRetest}
             progressPercent={progressPercent}
+            probeTrialProgress={probeTrialProgress}
           />
         )}
 

@@ -94,6 +94,9 @@ export const GUARANTEE_TO_TEST: Record<GuaranteeId, TestId> = {
   G5: 'T05',
 };
 
+import { runSessionLeakProbe } from './probeClient.ts';
+import type { ProbeTrial } from '../types.ts';
+
 /**
  * Machine-Readable Mutation Benchmark Specifications (Section 12)
  */
@@ -146,13 +149,13 @@ export const MUTATION_DEFINITIONS: Record<string, MutationScenarioDefinition> = 
   M4: {
     id: 'M4',
     code: 'M4_GATEWAY_CACHE',
-    name: 'Model Gateway Shared Context Pool',
+    name: 'Switch gateway to shared cache',
     targetBoundary: 'model_gateway',
     affectedGuarantee: 'G4',
     mappedProbe: 'T04',
     expectedStatus: 'BREACHED',
     isNegativeControl: false,
-    description: 'Enables shared KV prefix-cache in model proxy, allowing red queries to leak blue canary tokens.',
+    description: 'Enables shared multi-tenant KV context pool in model gateway as a routine performance optimization. Deliberately vulnerable configuration.',
   },
   M5: {
     id: 'M5',
@@ -197,7 +200,8 @@ export async function executeSimulatedTest(
   testId: TestId,
   config: SimulatedConfig,
   forcedDelayMs?: number,
-  guaranteeDigest?: string
+  guaranteeDigest?: string,
+  onTrialProgress?: (trialNumber: number, total: number, trial?: ProbeTrial) => void
 ): Promise<TestExecutionResult> {
   const guaranteeId = TEST_TO_GUARANTEE[testId];
   const startTime = performance.now();
@@ -207,12 +211,15 @@ export async function executeSimulatedTest(
     await new Promise((resolve) => setTimeout(resolve, forcedDelayMs));
   }
 
-  const endTime = performance.now();
-  const durationMs = Math.max(0.01, Number((endTime - startTime).toFixed(2)));
   const evaluatedAt = new Date().toISOString();
   let status: 'PASS' | 'FAIL' = 'PASS';
   let message = '';
   let details = '';
+  let trials: ProbeTrial[] | undefined = undefined;
+  let source: 'live' | 'cached' | undefined = undefined;
+  let tag: string | undefined = undefined;
+  let leakCount: number | undefined = undefined;
+  let totalTrials: number | undefined = undefined;
 
   switch (testId) {
     case 'T01': {
@@ -262,15 +269,24 @@ export async function executeSimulatedTest(
     }
 
     case 'T04': {
-      // G4: Model Session Confidentiality (gatewaySessionIsolation check)
-      if (config.gatewaySessionIsolation === 'shared') {
-        status = 'FAIL';
-        message = 'Canary leak detected: Model gateway context cache is configured with SHARED session pool.';
-        details = `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query.`;
+      // G4: Model Session Confidentiality (real paired canary probe against test gateway)
+      const probeRes = await runSessionLeakProbe(config.gatewaySessionIsolation, onTrialProgress);
+      status = probeRes.passed ? 'PASS' : 'FAIL';
+      trials = probeRes.trials;
+      source = probeRes.source;
+      tag = probeRes.tag;
+      leakCount = probeRes.leakCount;
+      totalTrials = probeRes.trials.length;
+
+      if (!probeRes.passed) {
+        const firstLeak = probeRes.trials.find((t) => t.leaked);
+        message = `Canary leak detected: Model gateway context cache is configured with SHARED session pool.`;
+        details = `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query. Leak observed in ${probeRes.leakCount} of ${probeRes.trials.length} paired trials.${
+          firstLeak?.excerpt ? ` Excerpt: "${firstLeak.excerpt}".` : ''
+        }`;
       } else {
-        status = 'PASS';
-        message = 'Canary test passed: Zero context bleed between Blue evaluation and Red test sessions.';
-        details = `Injected 128-bit canary payload (CANARY-7X9B-4D1E-8F2A) into Blue tenant. Red harness prefix queries returned zero matches (0 ppm leakage).`;
+        message = `Canary test passed: Zero context bleed between Blue evaluation and Red test sessions.`;
+        details = `Injected 128-bit canary payload (CANARY-7X9B-4D1E-8F2A) into Blue tenant. Red harness prefix queries returned zero matches (0 ppm leakage across ${probeRes.trials.length} paired trials). Sessions isolated to independent memory contexts.`;
       }
       break;
     }
@@ -299,6 +315,9 @@ export async function executeSimulatedTest(
       throw new Error(`Unknown test ID: ${testId}`);
   }
 
+  const endTime = performance.now();
+  const durationMs = Math.max(0.01, Number((endTime - startTime).toFixed(2)));
+
   return {
     testId,
     guaranteeId,
@@ -308,5 +327,10 @@ export async function executeSimulatedTest(
     message,
     details,
     evaluatedAt,
+    trials,
+    source,
+    tag,
+    leakCount,
+    totalTrials,
   };
 }

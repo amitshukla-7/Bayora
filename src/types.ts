@@ -42,6 +42,19 @@ export interface GuaranteeDefinition {
   threatModelRisk: string;
 }
 
+export interface ProbeTrial {
+  trialNumber: number;
+  canaryToken: string;
+  sessionAPrompt: string;
+  sessionAResponse: string;
+  sessionBPrompt: string;
+  sessionBResponse: string;
+  leaked: boolean;
+  durationMs: number;
+  excerpt?: string | null;
+  transcriptSha256: string;
+}
+
 export interface TestExecutionResult {
   testId: TestId;
   guaranteeId: GuaranteeId;
@@ -51,6 +64,11 @@ export interface TestExecutionResult {
   message: string;
   details: string;
   evaluatedAt: string;
+  trials?: ProbeTrial[];
+  source?: 'live' | 'cached';
+  tag?: string;
+  leakCount?: number;
+  totalTrials?: number;
 }
 
 /**
