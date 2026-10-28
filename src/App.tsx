@@ -6,6 +6,7 @@ import {
   FileCode,
   LayoutGrid,
   BarChart3,
+  FileCheck,
 } from 'lucide-react';
 import type {
   AssuranceState,
@@ -56,6 +57,10 @@ import { EvidenceLogTable } from './components/EvidenceLogTable';
 import { FailClosedGate } from './components/FailClosedGate';
 import { ThreatModelPanel } from './components/ThreatModelPanel';
 import { BenchmarkPanel } from './components/BenchmarkPanel';
+import { IncidentAnalystPanel } from './components/IncidentAnalystPanel';
+import { AssuranceStatement } from './components/AssuranceStatement';
+import { requestAnalystReport } from './services/probeClient';
+import { buildDeterministicFallback, type AnalystOutput } from './core/analyst';
 
 export function App() {
   // Core simulated lab state
@@ -71,12 +76,18 @@ export function App() {
   // Assurance State & Verification Baselines
   const [assuranceState, setAssuranceState] = useState<AssuranceState>('UNVERIFIED');
   const [verifiedFingerprint, setVerifiedFingerprint] = useState<string | null>(null);
+  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
   const [verifiedDigests, setVerifiedDigests] = useState<GuaranteeDigestMap | null>(null);
   const [staleGuarantees, setStaleGuarantees] = useState<Set<GuaranteeId>>(new Set());
 
+  // Advisory Incident Security Analyst State
+  const [analystReport, setAnalystReport] = useState<AnalystOutput | null>(null);
+  const [analystLabel, setAnalystLabel] = useState<string>('AI-generated, advisory');
+  const [isAnalystLoading, setIsAnalystLoading] = useState<boolean>(false);
+
   // Active Tab View
   const [activeTab, setActiveTab] = useState<
-    'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'benchmarks'
+    'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'benchmarks' | 'assurance'
   >('all');
 
   // Test Results
@@ -428,8 +439,10 @@ export function App() {
       if (allPassed && updatedStale.size === 0) {
         nextState = 'VERIFIED';
         setVerifiedFingerprint(currentFingerprint);
+        setVerifiedAt(new Date().toISOString());
         setVerifiedDigests(currentDigests);
         setStaleGuarantees(new Set());
+        setAnalystReport(null);
       } else if (assuranceState === 'UNVERIFIED') {
         // If we were UNVERIFIED and only a subset of tests ran/passed, remain UNVERIFIED
         nextState = 'UNVERIFIED';
@@ -439,6 +452,51 @@ export function App() {
     }
 
     setAssuranceState(nextState);
+
+    // If there is an active failure, request advisory analysis from AI incident analyst
+    if (hasFailure) {
+      const failedTid = testsToRun.find((tid) => currentResultsCopy[tid]?.status === 'FAIL') || testsToRun[0];
+      const failedG = GUARANTEES.find((g) => g.testId === failedTid);
+      if (failedG) {
+        const res = currentResultsCopy[failedTid];
+        const evidenceRefs = [
+          `ev-${failedTid.toLowerCase()}-fail`,
+          ...(res?.trials ? [`trial-${res.trials.find((t) => t.leaked)?.trialNumber || 1}-leak`] : []),
+          currentFingerprint.slice(0, 16),
+        ];
+        setIsAnalystLoading(true);
+        requestAnalystReport({
+          failedCheckId: failedTid,
+          guaranteeId: failedG.id,
+          guaranteeName: failedG.name,
+          failureMessage: res?.message || 'Boundary check failed',
+          failureDetails: res?.details || 'Boundary integrity violation observed during probe execution.',
+          diffSummary: Array.from(staleGuarantees).length > 0
+            ? `Configuration drift detected on: [${Array.from(staleGuarantees).join(', ')}]`
+            : 'Active perimeter test failure detected during probe execution.',
+          evidenceRefs,
+        })
+          .then((analysis) => {
+            setAnalystReport(analysis.report);
+            setAnalystLabel(analysis.label);
+            setIsAnalystLoading(false);
+          })
+          .catch(() => {
+            const fallback = buildDeterministicFallback({
+              failedCheckId: failedTid,
+              guaranteeId: failedG.id,
+              guaranteeName: failedG.name,
+              failureMessage: res?.message || 'Boundary check failed',
+              failureDetails: res?.details || '',
+              diffSummary: 'Drift detected',
+              evidenceRefs,
+            });
+            setAnalystReport(fallback);
+            setAnalystLabel('Template (AI output failed validation)');
+            setIsAnalystLoading(false);
+          });
+      }
+    }
 
     // Track Recovery Latency (T_rec) if recovering
     if (remediationTimestampRef.current && nextState === 'VERIFIED') {
@@ -531,6 +589,50 @@ export function App() {
     setVerificationReport(report);
 
     setIsRunning(false);
+  };
+
+  const fetchAnalystInvestigation = async () => {
+    const failedG = GUARANTEES.find((g) => testResults[g.testId]?.status === 'FAIL');
+    if (!failedG) return;
+    const tid = failedG.testId;
+    const res = testResults[tid];
+    setIsAnalystLoading(true);
+
+    const evidenceRefs = [
+      `ev-${tid.toLowerCase()}-fail`,
+      ...(res?.trials ? [`trial-${res.trials.find((t) => t.leaked)?.trialNumber || 1}-leak`] : []),
+      currentFingerprint.slice(0, 16),
+    ];
+
+    try {
+      const analysis = await requestAnalystReport({
+        failedCheckId: tid,
+        guaranteeId: failedG.id,
+        guaranteeName: failedG.name,
+        failureMessage: res?.message || 'Boundary check failed',
+        failureDetails: res?.details || 'Boundary integrity violation observed during automated test execution.',
+        diffSummary: Array.from(staleGuarantees).length > 0
+          ? `Configuration drift detected on: [${Array.from(staleGuarantees).join(', ')}]`
+          : 'Active perimeter test failure detected during probe execution.',
+        evidenceRefs,
+      });
+      setAnalystReport(analysis.report);
+      setAnalystLabel(analysis.label);
+    } catch {
+      const fallback = buildDeterministicFallback({
+        failedCheckId: tid,
+        guaranteeId: failedG.id,
+        guaranteeName: failedG.name,
+        failureMessage: res?.message || 'Boundary check failed',
+        failureDetails: res?.details || '',
+        diffSummary: 'Drift detected',
+        evidenceRefs,
+      });
+      setAnalystReport(fallback);
+      setAnalystLabel('Template (AI output failed validation)');
+    } finally {
+      setIsAnalystLoading(false);
+    }
   };
 
   const handleRunFullVerification = () => {
@@ -911,28 +1013,30 @@ export function App() {
       } flex flex-col font-sans selection:bg-sky-500/30 selection:text-sky-200 transition-colors duration-150`}
     >
       {/* Executive Status Header */}
-      <StatusBanner
-        state={assuranceState}
-        currentFingerprint={currentFingerprint}
-        verifiedFingerprint={verifiedFingerprint}
-        affectedGuarantees={Array.from(staleGuarantees)}
-        totalEventsCount={evidenceEvents.length}
-        lastRunDurationMs={lastRunDurationMs}
-        testsPassedCount={testsPassedCount}
-        totalTestsCount={GUARANTEES.length}
-        chainValidStatus={verificationReport ? verificationReport.status : 'VALID'}
-        decoupledSnapshot={decoupledSnapshot}
-        metrics={metrics}
-        onRunFullVerification={handleRunFullVerification}
-        onRunSelectiveRetest={handleRunSelectiveRetest}
-        isRunning={isRunning}
-        selectiveTestsCount={selectiveTestsToRun.length}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      <div className="print:hidden">
+        <StatusBanner
+          state={assuranceState}
+          currentFingerprint={currentFingerprint}
+          verifiedFingerprint={verifiedFingerprint}
+          affectedGuarantees={Array.from(staleGuarantees)}
+          totalEventsCount={evidenceEvents.length}
+          lastRunDurationMs={lastRunDurationMs}
+          testsPassedCount={testsPassedCount}
+          totalTestsCount={GUARANTEES.length}
+          chainValidStatus={verificationReport ? verificationReport.status : 'VALID'}
+          decoupledSnapshot={decoupledSnapshot}
+          metrics={metrics}
+          onRunFullVerification={handleRunFullVerification}
+          onRunSelectiveRetest={handleRunSelectiveRetest}
+          isRunning={isRunning}
+          selectiveTestsCount={selectiveTestsToRun.length}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      </div>
 
       {/* Subnav / Dashboard Tabs */}
-      <div className="border-b border-slate-800 bg-[#0a0f1c]">
+      <div className="border-b border-slate-800 bg-[#0a0f1c] print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto">
           <nav className="flex space-x-1 py-2 text-xs font-medium">
             <button
@@ -991,6 +1095,17 @@ export function App() {
               Audit Hash Chain
             </button>
             <button
+              onClick={() => setActiveTab('assurance')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                activeTab === 'assurance'
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              Assurance Statement (AI for All)
+            </button>
+            <button
               onClick={() => setActiveTab('benchmarks')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
                 activeTab === 'benchmarks'
@@ -999,7 +1114,7 @@ export function App() {
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              Benchmarks & Demo (5-Min)
+              Benchmarks & Demo (3-Min)
             </button>
           </nav>
         </div>
@@ -1008,90 +1123,134 @@ export function App() {
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 w-full space-y-6 flex-1">
         {/* Benchmarks & 5-Minute Demo Script Walkthrough */}
+        {/* Benchmarks & 3-Minute Demo Script Walkthrough */}
         {(activeTab === 'all' || activeTab === 'benchmarks') && (
-          <BenchmarkPanel
-            metrics={metrics}
-            assuranceState={assuranceState}
-            onRunFullVerification={handleRunFullVerification}
-            onRunSelectiveRetest={handleRunSelectiveRetest}
-            onApplyMutation={handleApplyMutation}
-            onVerifyLedger={handleVerifyEvidence}
-            onSimulateTamper={handleSimulateTampering}
-            onSimulateDrop={handleSimulateMissingEvent}
-            onRequestGate={handleRequestEvaluation}
-            isRunning={isRunning}
-          />
+          <div className="print:hidden">
+            <BenchmarkPanel
+              metrics={metrics}
+              assuranceState={assuranceState}
+              onRunFullVerification={handleRunFullVerification}
+              onRunSelectiveRetest={handleRunSelectiveRetest}
+              onApplyMutation={handleApplyMutation}
+              onVerifyLedger={handleVerifyEvidence}
+              onSimulateTamper={handleSimulateTampering}
+              onSimulateDrop={handleSimulateMissingEvent}
+              onRequestGate={handleRequestEvaluation}
+              isRunning={isRunning}
+            />
+          </div>
         )}
 
         {/* Probing Progress & Execution controls */}
         {(activeTab === 'all' || activeTab === 'guarantees') && (
-          <RunControls
-            isRunning={isRunning}
-            currentRunningTest={currentRunningTest}
-            testsToRunCount={GUARANTEES.length}
-            selectiveTests={selectiveTestsToRun}
-            onRunFullVerification={handleRunFullVerification}
-            onRunSelectiveRetest={handleRunSelectiveRetest}
-            progressPercent={progressPercent}
-            probeTrialProgress={probeTrialProgress}
-          />
+          <div className="print:hidden">
+            <RunControls
+              isRunning={isRunning}
+              currentRunningTest={currentRunningTest}
+              testsToRunCount={GUARANTEES.length}
+              selectiveTests={selectiveTestsToRun}
+              onRunFullVerification={handleRunFullVerification}
+              onRunSelectiveRetest={handleRunSelectiveRetest}
+              progressPercent={progressPercent}
+              probeTrialProgress={probeTrialProgress}
+            />
+          </div>
         )}
 
         {/* Guarantees Matrix */}
         {(activeTab === 'all' || activeTab === 'guarantees') && (
-          <GuaranteesTable
-            guarantees={GUARANTEES}
-            testResults={testResults}
-            staleGuarantees={staleGuarantees}
-            isRunning={isRunning}
-            onRunSingleTest={handleRunSingleTest}
-          />
+          <div className="print:hidden">
+            <GuaranteesTable
+              guarantees={GUARANTEES}
+              testResults={testResults}
+              staleGuarantees={staleGuarantees}
+              isRunning={isRunning}
+              onRunSingleTest={handleRunSingleTest}
+            />
+          </div>
+        )}
+
+        {/* Incident Security Analyst (Advisory AI) */}
+        {(activeTab === 'all' || activeTab === 'guarantees' || activeTab === 'mutations' || activeTab === 'gate') && (
+          <div className="print:hidden">
+            <IncidentAnalystPanel
+              report={analystReport}
+              label={analystLabel}
+              isLoading={isAnalystLoading}
+              onRefresh={fetchAnalystInvestigation}
+              hasActiveFailure={hasFailTest || assuranceState === 'BREACHED'}
+            />
+          </div>
         )}
 
         {/* Mutation Lab & Topologies */}
         {(activeTab === 'all' || activeTab === 'mutations') && (
-          <MutationLab
-            config={config}
-            baselineConfig={BASELINE_CONFIG}
-            onApplyMutation={handleApplyMutation}
-            isRunning={isRunning}
-            affectedGuarantees={Array.from(staleGuarantees)}
-          />
+          <div className="print:hidden">
+            <MutationLab
+              config={config}
+              baselineConfig={BASELINE_CONFIG}
+              onApplyMutation={handleApplyMutation}
+              isRunning={isRunning}
+              affectedGuarantees={Array.from(staleGuarantees)}
+            />
+          </div>
         )}
 
         {/* Fail-Closed Policy Gate */}
         {(activeTab === 'all' || activeTab === 'gate' || activeTab === 'guarantees') && (
-          <FailClosedGate
-            state={assuranceState}
-            currentFingerprint={currentFingerprint}
-            decoupledSnapshot={decoupledSnapshot}
-            onRequestEvaluation={handleRequestEvaluation}
-          />
+          <div className="print:hidden">
+            <FailClosedGate
+              state={assuranceState}
+              currentFingerprint={currentFingerprint}
+              decoupledSnapshot={decoupledSnapshot}
+              onRequestEvaluation={handleRequestEvaluation}
+            />
+          </div>
         )}
 
         {/* Cryptographic Audit Ledger */}
         {(activeTab === 'all' || activeTab === 'audit') && (
-          <EvidenceLogTable
-            events={evidenceEvents}
-            verificationReport={verificationReport}
-            onVerifyEvidence={handleVerifyEvidence}
-            onSimulateTampering={handleSimulateTampering}
-            onSimulateMissingEvent={handleSimulateMissingEvent}
-            onResetLog={handleResetLog}
-            onImportLedger={handleImportLedger}
-            onExportBundle={handleExportBundle}
-            isVerifying={isVerifying}
-          />
+          <div className="print:hidden">
+            <EvidenceLogTable
+              events={evidenceEvents}
+              verificationReport={verificationReport}
+              onVerifyEvidence={handleVerifyEvidence}
+              onSimulateTampering={handleSimulateTampering}
+              onSimulateMissingEvent={handleSimulateMissingEvent}
+              onResetLog={handleResetLog}
+              onImportLedger={handleImportLedger}
+              onExportBundle={handleExportBundle}
+              isVerifying={isVerifying}
+            />
+          </div>
         )}
 
         {/* Limits and Non-Claims (Folded into Evidence / Audit Screen) */}
         {(activeTab === 'all' || activeTab === 'audit') && (
-          <ThreatModelPanel />
+          <div className="print:hidden">
+            <ThreatModelPanel />
+          </div>
+        )}
+
+        {/* Plain-Language Assurance Statement (AI for All Screen) */}
+        {(activeTab === 'all' || activeTab === 'assurance') && (
+          <AssuranceStatement
+            state={assuranceState}
+            verifiedAt={verifiedAt}
+            currentFingerprint={currentFingerprint}
+            verifiedFingerprint={verifiedFingerprint}
+            config={config}
+            baselineConfig={BASELINE_CONFIG}
+            guarantees={GUARANTEES}
+            testResults={testResults}
+            staleGuarantees={staleGuarantees}
+            bundleHash={evidenceEvents.length > 0 ? evidenceEvents[evidenceEvents.length - 1].event_hash : currentFingerprint}
+          />
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#070b14] py-4 text-center text-xs text-slate-500 font-mono">
+      <footer className="border-t border-slate-800/80 bg-[#070b14] py-4 text-center text-xs text-slate-500 font-mono print:hidden">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>Bayora · Adversarial AI Infrastructure Security Verification</span>
           <span>Continuous Verification Engine · Version 1.4</span>
