@@ -35,11 +35,19 @@ import {
   computeConfigFingerprint,
   computeGuaranteeDigests,
   buildCanonicalManifest,
-  signCheckpointDigest,
   GENESIS_HASH,
   hashEventPayload,
   verifyEvidenceChain,
+  getSecurityRelevantConfig,
 } from './utils/crypto';
+import {
+  generateSigningKeyPair,
+  signDataP256,
+  KEY_LABEL,
+  type SigningKeyPair,
+} from './core/signing';
+import { createEvidenceBundle, type SignedCheckpoint } from './core/bundle';
+import { type SignedTicket } from './core/tickets';
 import { StatusBanner } from './components/StatusBanner';
 import { GuaranteesTable } from './components/GuaranteesTable';
 import { MutationLab } from './components/MutationLab';
@@ -55,6 +63,10 @@ export function App() {
   const [baselineFingerprint, setBaselineFingerprint] = useState<string>('');
   const [currentFingerprint, setCurrentFingerprint] = useState<string>('');
   const [currentDigests, setCurrentDigests] = useState<GuaranteeDigestMap | null>(null);
+
+  // ECDSA P-256 Workspace Signing Key and Active Ticket
+  const [signingKeyPair, setSigningKeyPair] = useState<SigningKeyPair | null>(null);
+  const [, setCurrentTicket] = useState<SignedTicket | null>(null);
 
   // Assurance State & Verification Baselines
   const [assuranceState, setAssuranceState] = useState<AssuranceState>('UNVERIFIED');
@@ -133,16 +145,37 @@ export function App() {
     eventsRef.current = evidenceEvents;
   }, [evidenceEvents]);
 
-  // Initialize and compute initial fingerprint on load
+  // Initialize and compute initial fingerprint and signing keys on load
   useEffect(() => {
-    async function initHashes() {
+    async function initEnvironment() {
       const fp = await computeConfigFingerprint(BASELINE_CONFIG);
       const digests = await computeGuaranteeDigests(BASELINE_CONFIG);
       setBaselineFingerprint(fp);
       setCurrentFingerprint(fp);
       setCurrentDigests(digests);
+
+      // Initialize persistent workspace ECDSA P-256 signing key
+      try {
+        const stored = localStorage.getItem('bayora_signing_key_p256');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.publicKeyJwk && parsed.privateKeyJwk) {
+            setSigningKeyPair(parsed);
+            return;
+          }
+        }
+      } catch {
+        // Fallback
+      }
+      const generated = await generateSigningKeyPair('key-workspace-eval-01');
+      setSigningKeyPair(generated);
+      try {
+        localStorage.setItem('bayora_signing_key_p256', JSON.stringify(generated));
+      } catch {
+        // Fallback
+      }
     }
-    initHashes();
+    initEnvironment();
   }, []);
 
   /**
@@ -200,6 +233,11 @@ export function App() {
         }));
       }
       return;
+    }
+
+    // Invalidate ticket the instant fingerprint changes
+    if (newFingerprint !== currentFingerprint) {
+      setCurrentTicket(null);
     }
 
     // Measure TTD (Time to Detect)
@@ -419,12 +457,48 @@ export function App() {
       policy_verdict: nextState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
     });
 
-    // Stage 6: checkpoint.signed (Ed25519 / HMAC signature outside container runner)
+    // Stage 6: checkpoint.signed (ECDSA P-256 Web Crypto signature labeled "Software signing key")
     const latestEvents = eventsRef.current;
     const rootHash = latestEvents.length > 0 ? latestEvents[latestEvents.length - 1].event_hash : GENESIS_HASH;
-    const signedCheckpoint = await signCheckpointDigest(runId, rootHash);
+
+    let key = signingKeyPair;
+    if (!key) {
+      key = await generateSigningKeyPair('key-workspace-eval-01');
+      setSigningKeyPair(key);
+    }
+
+    const checkpointBody = {
+      runId,
+      headHash: rootHash,
+      state: nextState,
+      decision: nextState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
+    };
+    const signatureHex = await signDataP256(checkpointBody, key.privateKeyJwk);
+
+    const signedCheckpoint: SignedCheckpoint = {
+      checkpointId: `chk-${runId}`,
+      runId,
+      headHash: rootHash,
+      state: nextState,
+      decision: nextState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
+      keyLabel: KEY_LABEL,
+      keyId: key.keyId,
+      signature: signatureHex,
+      publicKeyJwk: key.publicKeyJwk,
+      timestamp: new Date().toISOString(),
+    };
+
     await appendEvent(runId, 'checkpoint.signed', {
       checkpoint: signedCheckpoint,
+      run_id: runId,
+      head_hash: rootHash,
+      state: nextState,
+      decision: nextState === 'VERIFIED' ? 'GRANTED' : 'DENIED',
+      key_label: KEY_LABEL,
+      key_id: key.keyId,
+      algorithm: 'ECDSA-P256-SHA256',
+      signature: signatureHex,
+      public_key_jwk: key.publicKeyJwk,
     });
 
     // Stage 7: run.completed
@@ -741,6 +815,32 @@ export function App() {
     });
 
     const isGranted = reasons.length === 0;
+    const ticketId = isGranted ? `TKT-BAYORA-${currentFingerprint.slice(0, 8).toUpperCase()}-OK` : undefined;
+
+    if (isGranted && signingKeyPair) {
+      const issuedAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const tktBody = {
+        ticketId: ticketId!,
+        manifestFingerprint: currentFingerprint,
+        decision: 'GRANTED',
+        issuedAt,
+        expiresAt,
+      };
+      signDataP256(tktBody, signingKeyPair.privateKeyJwk).then((sig) => {
+        const ticket: SignedTicket = {
+          ticketId: ticketId!,
+          issuedAt,
+          expiresAt,
+          manifestFingerprint: currentFingerprint,
+          keyId: signingKeyPair.keyId,
+          signature: sig,
+        };
+        setCurrentTicket(ticket);
+      });
+    } else {
+      setCurrentTicket(null);
+    }
 
     return {
       decision: isGranted ? 'GRANTED' : 'DENIED',
@@ -749,8 +849,40 @@ export function App() {
       verifiedFingerprint,
       reasons,
       requiredTests: requiredTestsList,
-      ticketId: isGranted ? `TKT-BAYORA-${currentFingerprint.slice(0, 8).toUpperCase()}-OK` : undefined,
+      ticketId,
     };
+  };
+
+  const handleExportBundle = async () => {
+    const secConfig = getSecurityRelevantConfig(config);
+    const checkpoints: SignedCheckpoint[] = evidenceEvents
+      .filter((e) => e.event_type === 'checkpoint.signed' && e.payload?.checkpoint)
+      .map((e) => e.payload.checkpoint as SignedCheckpoint);
+
+    let key = signingKeyPair;
+    if (!key) {
+      key = await generateSigningKeyPair('key-workspace-eval-01');
+      setSigningKeyPair(key);
+    }
+
+    const bundle = createEvidenceBundle(
+      secConfig,
+      currentFingerprint,
+      currentDigests || (await computeGuaranteeDigests(config)),
+      evidenceEvents,
+      checkpoints,
+      key.publicKeyJwk
+    );
+
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bayora-evidence-bundle-${currentFingerprint.slice(0, 8)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const selectiveTestsToRun: TestId[] = [];
@@ -947,6 +1079,7 @@ export function App() {
             onSimulateMissingEvent={handleSimulateMissingEvent}
             onResetLog={handleResetLog}
             onImportLedger={handleImportLedger}
+            onExportBundle={handleExportBundle}
             isVerifying={isVerifying}
           />
         )}

@@ -28,6 +28,7 @@ interface EvidenceLogTableProps {
   onSimulateMissingEvent: () => void;
   onResetLog: () => void;
   onImportLedger?: (importedEvents: EvidenceEvent[]) => void;
+  onExportBundle?: () => void;
   isVerifying: boolean;
 }
 
@@ -39,6 +40,7 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
   onSimulateMissingEvent,
   onResetLog,
   onImportLedger,
+  onExportBundle,
   isVerifying,
 }) => {
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
@@ -52,10 +54,15 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
   };
 
   const handleExportLedgerJson = () => {
+    if (onExportBundle) {
+      onExportBundle();
+      return;
+    }
     if (events.length === 0) return;
     const exportPackage = {
+      schema: 'bayora.evidence/1',
+      simulated: true,
       exported_at: new Date().toISOString(),
-      generator: 'Bayora Evidence Logging Service v1.4',
       total_events: events.length,
       events,
     };
@@ -77,7 +84,7 @@ export const EvidenceLogTable: React.FC<EvidenceLogTableProps> = ({
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        const imported = Array.isArray(parsed) ? parsed : parsed.events;
+        const imported = parsed.fullLedger || (Array.isArray(parsed) ? parsed : parsed.events);
         if (Array.isArray(imported) && imported.length > 0) {
           onImportLedger?.(imported);
         } else {

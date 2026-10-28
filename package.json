@@ -12,7 +12,7 @@
     "test": "vitest run && node scripts/test_engine.mjs",
     "test:unit": "vitest run",
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
-    "verify": "node scripts/verify_ledger.mjs",
+    "verify": "node --experimental-strip-types scripts/verify.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

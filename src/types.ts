@@ -25,6 +25,7 @@ export interface SimulatedConfig {
 }
 
 export interface GuaranteeDigestMap {
+  [key: string]: string;
   G1: string;
   G2: string;
   G3: string;

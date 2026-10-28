@@ -2,6 +2,8 @@
  * Pure Canonical JSON (RFC 8785) and Hashing Core
  */
 
+export const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
+
 export function canonicalJson(data: any): string {
   if (data === null || typeof data !== 'object') {
     return JSON.stringify(data);

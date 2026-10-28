@@ -24,9 +24,13 @@ export const TICKET_TTL_MS = 15 * 60 * 1000; // 15 minutes
  */
 export function validateTicket(
   ticket: SignedTicket | null | undefined,
-  currentFingerprint: string,
+  currentManifestOrFingerprint: string | { fingerprint?: string },
   nowMs: number = Date.now()
 ): TicketValidationResult {
+  const currentFingerprint =
+    typeof currentManifestOrFingerprint === 'string'
+      ? currentManifestOrFingerprint
+      : currentManifestOrFingerprint?.fingerprint || '';
   if (!ticket) {
     return { valid: false, reason: 'No ticket provided' };
   }

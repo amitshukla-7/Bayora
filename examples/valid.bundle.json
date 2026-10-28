@@ -1,0 +1,333 @@
+{
+  "schema": "bayora.evidence/1",
+  "simulated": true,
+  "manifest": {
+    "gatewaySessionIsolation": "strict",
+    "hardeningFlags": {
+      "dropCapabilities": [
+        "ALL"
+      ],
+      "noNewPrivileges": true,
+      "readOnlyRoot": true,
+      "seccompProfile": "docker/default"
+    },
+    "redMounts": [
+      "/opt/red/workspace"
+    ],
+    "redNetworks": [
+      "red-isolated-net"
+    ],
+    "storageApiAuthz": "strict"
+  },
+  "fingerprint": "49599cacb85c0775eec04a5a8e9df899998a848006a53fa4d71be9d554f6453b",
+  "guaranteeDigests": {
+    "G1": "36bc16e80d55eb2531275e82b13555c4467e235944e7176b1dc43c9d507ae27d",
+    "G2": "f74c30a3c1a2024f69ec1a2014d4ba2ba553fc3135ca3d2b2229cb08669cae67",
+    "G3": "eff4de313d407ce043152fe4e47b90c07a40fd69e060faef88306b653c2df7ca",
+    "G4": "eff4de313d407ce043152fe4e47b90c07a40fd69e060faef88306b653c2df7ca",
+    "G5": "50c21e4b63b9f03012dbcb986ce87c1e23ad5d031e1002ae078c53aa7763c047"
+  },
+  "fullLedger": [
+    {
+      "sequence": 1,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:36.665Z",
+      "event_type": "run.started",
+      "payload": {
+        "run_type": "full",
+        "tests_planned": [
+          "T01",
+          "T02",
+          "T03",
+          "T04",
+          "T05"
+        ],
+        "expected_plan": [
+          "manifest.captured",
+          "test.started:T01",
+          "test.completed:T01",
+          "test.started:T02",
+          "test.completed:T02",
+          "test.started:T03",
+          "test.completed:T03",
+          "test.started:T04",
+          "test.completed:T04",
+          "test.started:T05",
+          "test.completed:T05",
+          "policy.decision",
+          "checkpoint.signed",
+          "run.completed"
+        ],
+        "config_fingerprint": "49599cacb85c0775eec04a5a8e9df899998a848006a53fa4d71be9d554f6453b"
+      },
+      "previous_event_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "event_hash": "4eea61e184c0d39cd74049167b312ea7351139dd62843ebbe753c82afa873559"
+    },
+    {
+      "sequence": 2,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:36.765Z",
+      "event_type": "manifest.captured",
+      "payload": {
+        "canonical_manifest": {
+          "gatewaySessionIsolation": "strict",
+          "hardeningFlags": {
+            "dropCapabilities": [
+              "ALL"
+            ],
+            "noNewPrivileges": true,
+            "readOnlyRoot": true,
+            "seccompProfile": "docker/default"
+          },
+          "redMounts": [
+            "/opt/red/workspace"
+          ],
+          "redNetworks": [
+            "red-isolated-net"
+          ],
+          "storageApiAuthz": "strict"
+        },
+        "digests": {
+          "G1": "36bc16e80d55eb2531275e82b13555c4467e235944e7176b1dc43c9d507ae27d",
+          "G2": "f74c30a3c1a2024f69ec1a2014d4ba2ba553fc3135ca3d2b2229cb08669cae67",
+          "G3": "eff4de313d407ce043152fe4e47b90c07a40fd69e060faef88306b653c2df7ca",
+          "G4": "eff4de313d407ce043152fe4e47b90c07a40fd69e060faef88306b653c2df7ca",
+          "G5": "50c21e4b63b9f03012dbcb986ce87c1e23ad5d031e1002ae078c53aa7763c047"
+        }
+      },
+      "previous_event_hash": "4eea61e184c0d39cd74049167b312ea7351139dd62843ebbe753c82afa873559",
+      "event_hash": "5c24e660b1a5236cbc19507254aa68085e35a53d671f0ea1e3bbcdde401e64da"
+    },
+    {
+      "sequence": 3,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:36.865Z",
+      "event_type": "test.started",
+      "payload": {
+        "test_id": "T01",
+        "guarantee_id": "G1"
+      },
+      "previous_event_hash": "5c24e660b1a5236cbc19507254aa68085e35a53d671f0ea1e3bbcdde401e64da",
+      "event_hash": "0ac4340f3718cb9be13a59960ec9ec5e1b0184ee93dcb12cd4f284738533d73f"
+    },
+    {
+      "sequence": 4,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:36.966Z",
+      "event_type": "test.completed",
+      "payload": {
+        "test_id": "T01",
+        "guarantee_id": "G1",
+        "status": "PASS",
+        "duration_ms": 42,
+        "details": "Storage Isolation verified compliant under certified baseline."
+      },
+      "previous_event_hash": "0ac4340f3718cb9be13a59960ec9ec5e1b0184ee93dcb12cd4f284738533d73f",
+      "event_hash": "8a4b2fe5d7b23af3be282e82a34f5d856bce727acd3066388fb0138c40b405d6"
+    },
+    {
+      "sequence": 5,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.066Z",
+      "event_type": "test.started",
+      "payload": {
+        "test_id": "T02",
+        "guarantee_id": "G2"
+      },
+      "previous_event_hash": "8a4b2fe5d7b23af3be282e82a34f5d856bce727acd3066388fb0138c40b405d6",
+      "event_hash": "894716760e40ae4a75781a44c3295e5697bf1907253284b9be4cccd0d527099f"
+    },
+    {
+      "sequence": 6,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.166Z",
+      "event_type": "test.completed",
+      "payload": {
+        "test_id": "T02",
+        "guarantee_id": "G2",
+        "status": "PASS",
+        "duration_ms": 42,
+        "details": "Network Isolation verified compliant under certified baseline."
+      },
+      "previous_event_hash": "894716760e40ae4a75781a44c3295e5697bf1907253284b9be4cccd0d527099f",
+      "event_hash": "ea6852f84c10be97faececa2d9433b071679b38924623bd4d9bbc8144cbd2f18"
+    },
+    {
+      "sequence": 7,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.266Z",
+      "event_type": "test.started",
+      "payload": {
+        "test_id": "T03",
+        "guarantee_id": "G3"
+      },
+      "previous_event_hash": "ea6852f84c10be97faececa2d9433b071679b38924623bd4d9bbc8144cbd2f18",
+      "event_hash": "ebf2ae8ce2a1182139d911dbac94cef6276c83c81b74ab6be230075feb4290bf"
+    },
+    {
+      "sequence": 8,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.366Z",
+      "event_type": "test.completed",
+      "payload": {
+        "test_id": "T03",
+        "guarantee_id": "G3",
+        "status": "PASS",
+        "duration_ms": 42,
+        "details": "API Authorization verified compliant under certified baseline."
+      },
+      "previous_event_hash": "ebf2ae8ce2a1182139d911dbac94cef6276c83c81b74ab6be230075feb4290bf",
+      "event_hash": "e65e3a77f17a2a676640809b61ce5a708bbf7ccdff7eb75393ead24fcecd097e"
+    },
+    {
+      "sequence": 9,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.466Z",
+      "event_type": "test.started",
+      "payload": {
+        "test_id": "T04",
+        "guarantee_id": "G4"
+      },
+      "previous_event_hash": "e65e3a77f17a2a676640809b61ce5a708bbf7ccdff7eb75393ead24fcecd097e",
+      "event_hash": "fef032c705daa2933c703e6f25b74e370b0b6988172161f9ea306fecfb4d78bd"
+    },
+    {
+      "sequence": 10,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.566Z",
+      "event_type": "test.completed",
+      "payload": {
+        "test_id": "T04",
+        "guarantee_id": "G4",
+        "status": "PASS",
+        "duration_ms": 42,
+        "details": "Model Session Confidentiality verified compliant under certified baseline."
+      },
+      "previous_event_hash": "fef032c705daa2933c703e6f25b74e370b0b6988172161f9ea306fecfb4d78bd",
+      "event_hash": "9372158cae4b9baafe1552cbfbf4337a1f3ae391679a415d7e25b5afb8dc93b9"
+    },
+    {
+      "sequence": 11,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.667Z",
+      "event_type": "test.started",
+      "payload": {
+        "test_id": "T05",
+        "guarantee_id": "G5"
+      },
+      "previous_event_hash": "9372158cae4b9baafe1552cbfbf4337a1f3ae391679a415d7e25b5afb8dc93b9",
+      "event_hash": "74c9b3e79398bc06d6d8865d3761852693f5613d105c6b32d4d69ccf0c822db5"
+    },
+    {
+      "sequence": 12,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.767Z",
+      "event_type": "test.completed",
+      "payload": {
+        "test_id": "T05",
+        "guarantee_id": "G5",
+        "status": "PASS",
+        "duration_ms": 42,
+        "details": "Workload Hardening verified compliant under certified baseline."
+      },
+      "previous_event_hash": "74c9b3e79398bc06d6d8865d3761852693f5613d105c6b32d4d69ccf0c822db5",
+      "event_hash": "c64b9dce6ea98fd71e42e284a7dfce512482d56831eb98f448fb50b5134e2a84"
+    },
+    {
+      "sequence": 13,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.867Z",
+      "event_type": "policy.decision",
+      "payload": {
+        "assurance_state": "VERIFIED",
+        "fingerprint": "49599cacb85c0775eec04a5a8e9df899998a848006a53fa4d71be9d554f6453b",
+        "guarantees_passed": 5,
+        "has_failures": false,
+        "policy_verdict": "GRANTED"
+      },
+      "previous_event_hash": "c64b9dce6ea98fd71e42e284a7dfce512482d56831eb98f448fb50b5134e2a84",
+      "event_hash": "743c09ccb1745b02f7cf6bfd38c350e06369f7bdca8f24d95aa7cc415bccacd2"
+    },
+    {
+      "sequence": 14,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:37.968Z",
+      "event_type": "checkpoint.signed",
+      "payload": {
+        "checkpoint": {
+          "checkpoint_id": "chk-run-judge-audit-demo",
+          "run_id": "run-judge-audit-demo",
+          "root_event_hash": "743c09ccb1745b02f7cf6bfd38c350e06369f7bdca8f24d95aa7cc415bccacd2",
+          "state": "VERIFIED",
+          "decision": "GRANTED",
+          "key_label": "Software signing key",
+          "key_id": "key-judge-eval-01",
+          "algorithm": "ECDSA-P256-SHA256",
+          "signature": "65068fe27c9f70debfbfe118691fb9c7697b2ba6821529b73c81ed0bb4114649f1d69a5434012aaf18453e36fcfdf9844a40def9095fcbee3741bfdb298fa973",
+          "public_key_jwk": {
+            "key_ops": [
+              "verify"
+            ],
+            "ext": true,
+            "kty": "EC",
+            "x": "7anMwFbPsZ2p91MUv_n_WcXit6tCwL5mE1I6q77iimc",
+            "y": "mY3I43dZpHm67bUc4b3AUCFSbTIbJwl9nRZIMQ2Bltw",
+            "crv": "P-256"
+          },
+          "timestamp": "2026-10-28T16:50:38.068Z"
+        }
+      },
+      "previous_event_hash": "743c09ccb1745b02f7cf6bfd38c350e06369f7bdca8f24d95aa7cc415bccacd2",
+      "event_hash": "61487b16a86bb05064d5e3c2f75ca95d41d3816cbf8282c61716f4e9a63ae06b"
+    },
+    {
+      "sequence": 15,
+      "run_id": "run-judge-audit-demo",
+      "timestamp": "2026-10-28T16:50:38.069Z",
+      "event_type": "run.completed",
+      "payload": {
+        "summary": "Run run-judge-audit-demo finalized with state VERIFIED",
+        "total_duration_ms": 380,
+        "tests_executed": 5
+      },
+      "previous_event_hash": "61487b16a86bb05064d5e3c2f75ca95d41d3816cbf8282c61716f4e9a63ae06b",
+      "event_hash": "7fb03ce77c57be0256e7bccbae2c93e613604faf84fac0c9acdc87a7f5a0d9c1"
+    }
+  ],
+  "signedCheckpoints": [
+    {
+      "checkpoint_id": "chk-run-judge-audit-demo",
+      "run_id": "run-judge-audit-demo",
+      "root_event_hash": "743c09ccb1745b02f7cf6bfd38c350e06369f7bdca8f24d95aa7cc415bccacd2",
+      "state": "VERIFIED",
+      "decision": "GRANTED",
+      "key_label": "Software signing key",
+      "key_id": "key-judge-eval-01",
+      "algorithm": "ECDSA-P256-SHA256",
+      "signature": "65068fe27c9f70debfbfe118691fb9c7697b2ba6821529b73c81ed0bb4114649f1d69a5434012aaf18453e36fcfdf9844a40def9095fcbee3741bfdb298fa973",
+      "public_key_jwk": {
+        "key_ops": [
+          "verify"
+        ],
+        "ext": true,
+        "kty": "EC",
+        "x": "7anMwFbPsZ2p91MUv_n_WcXit6tCwL5mE1I6q77iimc",
+        "y": "mY3I43dZpHm67bUc4b3AUCFSbTIbJwl9nRZIMQ2Bltw",
+        "crv": "P-256"
+      },
+      "timestamp": "2026-10-28T16:50:38.068Z"
+    }
+  ],
+  "publicKeyJwk": {
+    "key_ops": [
+      "verify"
+    ],
+    "ext": true,
+    "kty": "EC",
+    "x": "7anMwFbPsZ2p91MUv_n_WcXit6tCwL5mE1I6q77iimc",
+    "y": "mY3I43dZpHm67bUc4b3AUCFSbTIbJwl9nRZIMQ2Bltw",
+    "crv": "P-256"
+  },
+  "keyLabel": "Software signing key",
+  "generatedAt": "2026-10-28T16:50:38.069Z"
+}

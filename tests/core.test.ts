@@ -521,3 +521,87 @@ describe('7. AI Analyst Validation & Template Fallback', () => {
     expect(validated.valid).toBe(true);
   });
 });
+
+describe('7. ECDSA P-256 Web Crypto Signing & Key Management', () => {
+  it('generates an ECDSA P-256 keypair labeled "Software signing key"', async () => {
+    const { generateSigningKeyPair, KEY_LABEL } = await import('../src/core/signing');
+    const keyPair = await generateSigningKeyPair();
+
+    expect(keyPair.keyLabel).toBe('Software signing key');
+    expect(keyPair.keyLabel).toBe(KEY_LABEL);
+    expect(keyPair.publicKeyJwk.kty).toBe('EC');
+    expect(keyPair.publicKeyJwk.crv).toBe('P-256');
+    expect(keyPair.privateKeyJwk.d).toBeDefined();
+  });
+
+  it('signs and verifies payload using ECDSA P-256 with Web Crypto', async () => {
+    const { generateSigningKeyPair, signDataP256, verifySignatureP256 } = await import('../src/core/signing');
+    const keyPair = await generateSigningKeyPair();
+
+    const payload = {
+      runId: 'run-p256-test',
+      headHash: 'a'.repeat(64),
+      state: 'VERIFIED',
+      decision: 'GRANTED',
+    };
+
+    const signature = await signDataP256(payload, keyPair.privateKeyJwk);
+    expect(typeof signature).toBe('string');
+    expect(signature.length).toBeGreaterThan(64);
+
+    // Valid verification
+    const isValid = await verifySignatureP256(payload, signature, keyPair.publicKeyJwk);
+    expect(isValid).toBe(true);
+
+    // Tampered payload fails verification
+    const tamperedPayload = { ...payload, state: 'BREACHED' };
+    const isTamperedValid = await verifySignatureP256(tamperedPayload, signature, keyPair.publicKeyJwk);
+    expect(isTamperedValid).toBe(false);
+
+    // Verification with wrong key fails
+    const otherKeyPair = await generateSigningKeyPair();
+    const isWrongKeyValid = await verifySignatureP256(payload, signature, otherKeyPair.publicKeyJwk);
+    expect(isWrongKeyValid).toBe(false);
+  });
+});
+
+describe('8. Evidence Bundle (bayora.evidence/1) & Offline CLI Agreement', () => {
+  it('verifies examples/valid.bundle.json with status VALID', async () => {
+    const { verifyBundle } = await import('../src/core/bundle');
+    const validBundle = (await import('../examples/valid.bundle.json')).default;
+
+    const report = await verifyBundle(validBundle);
+    expect(report.status).toBe('VALID');
+    expect(report.totalBlocks).toBe(15);
+    expect(report.fingerprintMatch).toBe(true);
+    expect(report.firstBadBlockIndex).toBeNull();
+  });
+
+  it('verifies examples/tampered.bundle.json with status TAMPERED at index 3', async () => {
+    const { verifyBundle } = await import('../src/core/bundle');
+    const tamperedBundle = (await import('../examples/tampered.bundle.json')).default;
+
+    const report = await verifyBundle(tamperedBundle);
+    expect(report.status).toBe('TAMPERED');
+    expect(report.firstBadBlockIndex).toBe(3);
+    expect(report.errorMessage).toContain('Block #4 hash invalid');
+  });
+
+  it('verifies incomplete bundle with dropped event yields INCOMPLETE', async () => {
+    const { verifyBundle } = await import('../src/core/bundle');
+    const validBundle = (await import('../examples/valid.bundle.json')).default;
+
+    // Drop block 2 (test.completed:T01)
+    const incompleteLedger = validBundle.fullLedger.filter((e: any) => e.sequence !== 3);
+    const incompleteBundle = {
+      ...validBundle,
+      fullLedger: incompleteLedger,
+    };
+
+    const report = await verifyBundle(incompleteBundle);
+    expect(report.status).toBe('INCOMPLETE');
+    expect(report.missingBlocks).toBeDefined();
+    expect(report.missingBlocks?.length).toBeGreaterThan(0);
+  });
+});
+
