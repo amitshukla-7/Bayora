@@ -4,7 +4,6 @@ import {
   SlidersHorizontal,
   Lock,
   FileCode,
-  Info,
   LayoutGrid,
   BarChart3,
 } from 'lucide-react';
@@ -65,7 +64,7 @@ export function App() {
 
   // Active Tab View
   const [activeTab, setActiveTab] = useState<
-    'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'benchmarks' | 'architecture'
+    'all' | 'guarantees' | 'mutations' | 'gate' | 'audit' | 'benchmarks'
   >('all');
 
   // Test Results
@@ -641,7 +640,7 @@ export function App() {
           assuranceState === 'VERIFIED'
             ? [
                 'All boundaries cryptographically attested.',
-                'Zero Trust evaluation access granted with verifiable certificate.',
+                'Zero Trust evaluation access granted with signed ticket.',
               ]
             : [
                 `Assurance state is ${assuranceState}. Fail-closed default deny active.`,
@@ -844,17 +843,6 @@ export function App() {
               <BarChart3 className="w-3.5 h-3.5" />
               Benchmarks & Demo (5-Min)
             </button>
-            <button
-              onClick={() => setActiveTab('architecture')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
-                activeTab === 'architecture'
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
-            >
-              <Info className="w-3.5 h-3.5" />
-              Threat Model & Scope
-            </button>
           </nav>
         </div>
       </div>
@@ -936,8 +924,8 @@ export function App() {
           />
         )}
 
-        {/* Threat Model & Architectural Scope */}
-        {(activeTab === 'all' || activeTab === 'architecture') && (
+        {/* Limits and Non-Claims (Folded into Evidence / Audit Screen) */}
+        {(activeTab === 'all' || activeTab === 'audit') && (
           <ThreatModelPanel />
         )}
       </main>
@@ -946,7 +934,7 @@ export function App() {
       <footer className="border-t border-slate-800/80 bg-[#070b14] py-4 text-center text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>Bayora · Adversarial AI Infrastructure Security Verification</span>
-          <span>Continuous Zero Trust Posture Engine · Enterprise v1.4</span>
+          <span>Continuous Verification Engine · Version 1.4</span>
         </div>
       </footer>
     </div>

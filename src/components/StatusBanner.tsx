@@ -7,7 +7,6 @@ import {
   Copy,
   Check,
   Hash,
-  Server,
   FileCheck2,
   Lock,
   Zap,
@@ -28,6 +27,8 @@ interface StatusBannerProps {
   chainValidStatus: 'VALID' | 'TAMPERED' | 'INCOMPLETE';
   decoupledSnapshot?: DecoupledAssuranceSnapshot;
   metrics?: BenchmarkMetrics;
+  modelMode?: 'live' | 'cached';
+  modelLabel?: string;
   onRunFullVerification: () => void;
   onRunSelectiveRetest: () => void;
   isRunning: boolean;
@@ -48,6 +49,8 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   chainValidStatus,
   decoupledSnapshot,
   metrics,
+  modelMode = 'cached',
+  modelLabel = 'Cached: recorded from llama3.2:3b',
   onRunFullVerification,
   onRunSelectiveRetest,
   isRunning,
@@ -126,11 +129,14 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
               </div>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-800 text-xs text-slate-400 font-mono">
-              <Server className="w-3.5 h-3.5 text-slate-500" />
-              <span>cluster: <strong className="text-slate-200">eval-redteam-sandbox</strong></span>
-              <span className="text-slate-600">/</span>
-              <span className="text-slate-400">us-east-1</span>
+            <div className="flex items-center gap-2 pl-3 border-l border-slate-800 text-xs font-mono">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-800/60 text-purple-300 font-medium">
+                Simulated environment
+              </span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900 border border-slate-800 text-slate-300">
+                <span className={`w-1.5 h-1.5 rounded-full ${modelMode === 'live' ? 'bg-emerald-400' : 'bg-sky-400'}`} />
+                {modelLabel}
+              </span>
             </div>
           </div>
 

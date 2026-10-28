@@ -346,7 +346,7 @@ export async function verifyEvidenceChain(events: EvidenceEvent[]): Promise<Chai
         totalEvents: events.length,
         validCount,
         brokenSequenceIndex: i,
-        errorMessage: `Tampering detected at sequence #${current.sequence} (${current.event_type}): Content payload hash mismatch! Recorded: ${current.event_hash.slice(
+        errorMessage: `Tampering detected at sequence #${current.sequence} (${current.event_type}): Content payload hash mismatch. Recorded: ${current.event_hash.slice(
           0,
           12
         )}..., Recomputed: ${calculatedHash.slice(0, 12)}...`,
@@ -367,7 +367,7 @@ export async function verifyEvidenceChain(events: EvidenceEvent[]): Promise<Chai
           totalEvents: events.length,
           validCount,
           brokenSequenceIndex: i,
-          errorMessage: `Checkpoint signature verification failed at sequence #${current.sequence}! Invalid signature for root event hash.`,
+          errorMessage: `Checkpoint signature verification failed at sequence #${current.sequence}: invalid signature for root event hash.`,
           tamperedEvent: current,
           signatureValid: false,
         };

@@ -56,8 +56,8 @@ export const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({
     {
       step: 2,
       time: '0:45–1:30',
-      title: 'Baseline Verification & Attestation',
-      description: 'Run full verification suite (5 probes), achieve VERIFIED state, and generate signed attestation ticket.',
+      title: 'Baseline Verification',
+      description: 'Run full verification suite (5 checks), achieve VERIFIED state, and generate signed evaluation ticket.',
       actionLabel: '2. Verify Baseline (T01–T05)',
       action: async () => {
         await onRunFullVerification();
@@ -153,7 +153,7 @@ export const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({
     onSimulateDrop();
     await new Promise((r) => setTimeout(r, 600));
 
-    log('Automated benchmark completed successfully! All 6 criteria validated.');
+    log('Automated benchmark completed successfully. All 6 criteria validated.');
     setIsAutoRunning(false);
   };
 

@@ -14,10 +14,10 @@ export const ThreatModelPanel: React.FC = () => {
           <ShieldCheck className="w-4 h-4 text-sky-400" />
           <div>
             <span className="text-sm font-semibold text-slate-200">
-              Security Architecture, Threat Model & Trust Boundaries
+              Limits and non-claims
             </span>
             <span className="ml-2 text-xs text-slate-400 font-mono">
-              (Formal Scope & Boundary Assumptions)
+              (Trust boundaries and architectural scope)
             </span>
           </div>
         </div>

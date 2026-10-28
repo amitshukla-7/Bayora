@@ -266,7 +266,7 @@ export async function executeSimulatedTest(
       if (config.gatewaySessionIsolation === 'shared') {
         status = 'FAIL';
         message = 'Canary leak detected: Model gateway context cache is configured with SHARED session pool.';
-        details = `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query!`;
+        details = `128-bit canary payload (CANARY-7X9B-4D1E-8F2A) injected into Blue tenant was retrieved by Red harness prefix query.`;
       } else {
         status = 'PASS';
         message = 'Canary test passed: Zero context bleed between Blue evaluation and Red test sessions.';

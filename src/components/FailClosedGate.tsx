@@ -105,7 +105,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
             </p>
           </div>
         ) : isTicketRevoked ? (
-          /* REVOKED Attestation Certificate (Fail-Closed Lockdown) */
+          /* REVOKED Evaluation Ticket (Fail-Closed Lockdown) */
           <div className="p-4 rounded-md bg-[#1d070e] border border-rose-500/50 text-rose-100 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-500/30 pb-3">
               <div className="flex items-center gap-2.5">
@@ -115,7 +115,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
                 <div>
                   <div className="text-[11px] font-mono uppercase tracking-wider text-rose-400 font-bold flex items-center gap-1.5">
                     <ShieldAlert className="w-3.5 h-3.5" />
-                    Attestation Revoked (Fail-Closed Lockdown)
+                    Evaluation Access Revoked (Fail-Closed Lockdown)
                   </div>
                   <div className="text-sm font-semibold text-white">
                     Access Revoked: Environment Drifted to {state}
@@ -132,15 +132,15 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
 
             <div className="p-3 bg-[#0c0306] rounded border border-rose-900/60 text-xs text-rose-200 space-y-1.5">
               <p>
-                The previously issued attestation ticket was cryptographically invalidated because the underlying infrastructure configuration drifted away from the verified baseline to <strong className="text-rose-300">{state}</strong>.
+                The previously issued evaluation ticket was cryptographically invalidated because the underlying infrastructure configuration changed to <strong className="text-rose-300">{state}</strong>.
               </p>
               <p className="text-slate-400 text-[11px]">
-                Evaluation access is immediately revoked by the Zero Trust Arbiter under fail-closed security policy until reverification passes.
+                Evaluation access is blocked by the fail-closed policy gate until re-verification passes.
               </p>
             </div>
           </div>
         ) : evaluationResult.decision === 'GRANTED' ? (
-          /* GRANTED Attestation Certificate */
+          /* GRANTED Evaluation Ticket */
           <div className="p-4 rounded-md bg-[#081711] border border-emerald-500/30 text-emerald-100 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-3">
               <div className="flex items-center gap-2.5">
@@ -164,7 +164,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
                     {evaluationResult.ticketId}
                   </span>
                   <div className="text-[10px] text-emerald-400/70 mt-1">
-                    Attested: {new Date(evaluationResult.timestamp).toLocaleTimeString()}
+                    Verified: {new Date(evaluationResult.timestamp).toLocaleTimeString()}
                   </div>
                 </div>
 
@@ -181,7 +181,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
                 <button
                   onClick={handleDownloadTicketJson}
                   className="p-1.5 rounded bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 transition"
-                  title="Download Attestation Ticket JSON"
+                  title="Download Ticket JSON"
                 >
                   <Download className="w-3.5 h-3.5" />
                 </button>
@@ -190,7 +190,7 @@ export const FailClosedGate: React.FC<FailClosedGateProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div className="bg-[#050e0a] p-3 rounded border border-emerald-500/20 space-y-1.5 font-mono text-[11px]">
-                <div className="text-slate-400">Cryptographic Attestation:</div>
+                <div className="text-slate-400">Cryptographic Verification:</div>
                 <div className="text-emerald-300">
                   State: <strong>VERIFIED</strong>
                 </div>
