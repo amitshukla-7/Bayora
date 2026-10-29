@@ -83,6 +83,27 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+// Root API Status Landing Page
+app.get('/', (c) => {
+  return c.json({
+    name: 'Bayora Intelligence Center (SentinelFlow) API',
+    version: '2.0.0',
+    status: 'ONLINE',
+    description: 'Deterministic AI Model Security Evaluation Platform ("AI Explains, Math Decides")',
+    frontend_url: 'http://localhost:5173',
+    endpoints: {
+      health: '/api/health',
+      dashboard: '/api/dashboard/summary',
+      models: '/api/models',
+      policies: '/api/policies',
+      evaluations: '/api/evaluations',
+      settings: '/api/settings',
+      grading_report: '/api/grading/validation-report',
+      gateway_proxy: '/v1/chat/completions'
+    }
+  });
+});
+
 // OpenAI-Compatible Proxy Gateway (/v1/chat/completions)
 app.route('/v1', proxyRouter);
 
