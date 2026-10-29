@@ -18,6 +18,8 @@ export function getDb() {
       mkdirSync(workspaceDir, { recursive: true });
     }
     dbInstance = new DatabaseSync(DB_PATH);
+    dbInstance.exec('PRAGMA journal_mode = WAL;');
+    dbInstance.exec('PRAGMA busy_timeout = 5000;');
     initTables(dbInstance);
     seedInitialData(dbInstance);
   }
@@ -171,6 +173,54 @@ function initTables(db) {
       historical_failed INTEGER NOT NULL DEFAULT 128
     )
   `);
+
+  // SentinelFlow Compatibility Tables (Runs, Incidents, Events)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS runs (
+      id TEXT PRIMARY KEY,
+      task TEXT NOT NULL,
+      status TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      total_tool_calls INTEGER NOT NULL DEFAULT 0,
+      allowed_count INTEGER NOT NULL DEFAULT 0,
+      denied_count INTEGER NOT NULL DEFAULT 0,
+      incident_count INTEGER NOT NULL DEFAULT 0,
+      summary TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS incidents (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      threat_category TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      target_resource TEXT NOT NULL,
+      policy_id TEXT NOT NULL,
+      description TEXT NOT NULL,
+      evidence_snippet TEXT NOT NULL,
+      ai_analysis TEXT,
+      status TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      tool_name TEXT,
+      resource TEXT,
+      decision TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      previous_event_hash TEXT NOT NULL,
+      event_hash TEXT NOT NULL
+    )
+  `);
 }
 
 function sha256(data) {
@@ -285,6 +335,7 @@ function seedInitialData(db) {
       is_enabled: 1,
       rules: JSON.stringify({
         patterns: ['BAYORA_SECRET_', 'sk-live-', 'internal_payroll_secret', 'BEGIN RSA PRIVATE KEY'],
+        disallowedPatterns: ['*restricted*', '*secret*', '*payroll*'],
         action: 'BLOCK_AND_FLAG'
       }),
       version: '1.2.0',
@@ -299,6 +350,8 @@ function seedInitialData(db) {
       is_enabled: 1,
       rules: JSON.stringify({
         heuristics: ['ignore previous instructions', 'system override', 'DAN mode', 'developer mode enabled'],
+        forbiddenKeywords: ['restricted', 'secret', 'payroll'],
+        forbiddenFilenames: ['restricted_payroll_secret.txt'],
         action: 'SANITIZE_OR_REJECT'
       }),
       version: '1.2.0',
@@ -313,6 +366,7 @@ function seedInitialData(db) {
       is_enabled: 1,
       rules: JSON.stringify({
         prohibitedTools: ['bash_exec', 'raw_socket', 'smtp_send_unverified', 'eval_remote_code'],
+        allowedDirectory: 'workspace/output',
         action: 'DENY'
       }),
       version: '1.2.0',
@@ -327,6 +381,8 @@ function seedInitialData(db) {
       is_enabled: 1,
       rules: JSON.stringify({
         maxToxicityScore: 0.15,
+        allowedRecipients: ['*@internal.local', '*@sentinelflow.ai'],
+        blockedDomains: ['*attacker*', '*hacker*', '*rogue*'],
         action: 'FLAG_WARNING'
       }),
       version: '1.1.0',
@@ -341,6 +397,7 @@ function seedInitialData(db) {
       is_enabled: 1,
       rules: JSON.stringify({
         frameworks: ['EU_AI_ACT', 'NIST_RMF_1.0', 'ISO_42001'],
+        maxResults: 10,
         action: 'RECORD_FINDING'
       }),
       version: '1.0.0',
@@ -849,7 +906,41 @@ export function createDataset(dataset, cases = []) {
 
 export function getAllPolicies() {
   const db = getDb();
-  return db.prepare('SELECT * FROM policies ORDER BY id ASC').all();
+  const rows = db.prepare('SELECT * FROM policies ORDER BY id ASC').all();
+  return rows.map((p) => {
+    let parsedRules = {};
+    try {
+      parsedRules = typeof p.rules === 'string' ? JSON.parse(p.rules) : p.rules || {};
+    } catch {
+      parsedRules = {};
+    }
+    return {
+      ...p,
+      is_enabled: Boolean(p.is_enabled),
+      effect: p.id === 'POL-002' || p.id === 'POL-004' ? 'DENY' : 'ALLOW',
+      tool:
+        p.id === 'POL-003'
+          ? 'write_report'
+          : p.id === 'POL-004'
+          ? 'mock_send_email'
+          : p.id === 'POL-005'
+          ? 'search_documents'
+          : 'read_document',
+      rule_config: parsedRules,
+    };
+  });
+}
+
+export function getPolicyById(id) {
+  const policies = getAllPolicies();
+  return policies.find((p) => p.id === id) || null;
+}
+
+export function updatePolicyState(id, isEnabled) {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.prepare('UPDATE policies SET is_enabled = ?, updated_at = ? WHERE id = ?').run(isEnabled ? 1 : 0, now, id);
+  return getPolicyById(id);
 }
 
 export function updatePolicy(id, updates) {
@@ -1071,7 +1162,134 @@ export function resetToSeed() {
   db.exec('DROP TABLE IF EXISTS security_events');
   db.exec('DROP TABLE IF EXISTS audit_evidence');
   db.exec('DROP TABLE IF EXISTS metrics_baseline');
+  db.exec('DROP TABLE IF EXISTS runs');
+  db.exec('DROP TABLE IF EXISTS incidents');
+  db.exec('DROP TABLE IF EXISTS events');
   initTables(db);
   seedInitialData(db);
   return { success: true, message: 'Database reset to initial Bayora seed data.' };
+}
+
+export function resetAllDemoData() {
+  const db = getDb();
+  db.exec('DELETE FROM runs');
+  db.exec('DELETE FROM incidents');
+  db.exec('DELETE FROM events');
+  return resetToSeed();
+}
+
+export function getOverviewMetrics() {
+  const db = getDb();
+  const runsCount = db.prepare('SELECT COUNT(*) as count FROM runs').get()?.count || 0;
+  const allowedCount = db.prepare('SELECT COALESCE(SUM(allowed_count), 0) as total FROM runs').get()?.total || 0;
+  const eventsCount = db.prepare('SELECT COUNT(*) as count FROM events').get()?.count || 0;
+  const incidentsCount = db.prepare('SELECT COUNT(*) as count FROM incidents').get()?.count || 0;
+  return {
+    totalRuns: runsCount,
+    totalAllowed: allowedCount,
+    totalEvents: eventsCount,
+    totalIncidents: incidentsCount,
+  };
+}
+
+export function getLatestEvent() {
+  const db = getDb();
+  return db.prepare('SELECT * FROM events ORDER BY sequence DESC LIMIT 1').get() || null;
+}
+
+export function insertEvent(e) {
+  const db = getDb();
+  const payloadStr = typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload || {});
+  const res = db.prepare(`
+    INSERT INTO events (run_id, timestamp, event_type, tool_name, resource, decision, payload, previous_event_hash, event_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    e.run_id,
+    e.timestamp,
+    e.event_type,
+    e.tool_name || null,
+    e.resource || null,
+    e.decision,
+    payloadStr,
+    e.previous_event_hash,
+    e.event_hash
+  );
+
+  const row = db.prepare('SELECT * FROM events WHERE sequence = ?').get(res.lastInsertRowid);
+  return {
+    ...row,
+    payload: JSON.parse(row.payload),
+  };
+}
+
+export function getAllEvents(limit = 1000) {
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM events ORDER BY sequence DESC LIMIT ?').all(limit);
+  return rows.map((r) => ({
+    ...r,
+    payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload,
+  }));
+}
+
+export function insertRun(r) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO runs (id, task, status, mode, total_tool_calls, allowed_count, denied_count, incident_count, summary, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    r.id,
+    r.task,
+    r.status,
+    r.mode,
+    r.total_tool_calls || 0,
+    r.allowed_count || 0,
+    r.denied_count || 0,
+    r.incident_count || 0,
+    r.summary || '',
+    r.created_at
+  );
+  return r;
+}
+
+export function updateRun(id, updates) {
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM runs WHERE id = ?').get(id);
+  if (!existing) return null;
+
+  db.prepare(`
+    UPDATE runs SET status = ?, total_tool_calls = ?, allowed_count = ?, denied_count = ?, incident_count = ?, summary = ?
+    WHERE id = ?
+  `).run(
+    updates.status !== undefined ? updates.status : existing.status,
+    updates.total_tool_calls !== undefined ? updates.total_tool_calls : existing.total_tool_calls,
+    updates.allowed_count !== undefined ? updates.allowed_count : existing.allowed_count,
+    updates.denied_count !== undefined ? updates.denied_count : existing.denied_count,
+    updates.incident_count !== undefined ? updates.incident_count : existing.incident_count,
+    updates.summary !== undefined ? updates.summary : existing.summary,
+    id
+  );
+  return db.prepare('SELECT * FROM runs WHERE id = ?').get(id);
+}
+
+export function insertIncident(i) {
+  const db = getDb();
+  const analysisStr = typeof i.ai_analysis === 'string' ? i.ai_analysis : JSON.stringify(i.ai_analysis || {});
+  db.prepare(`
+    INSERT INTO incidents (id, run_id, timestamp, severity, threat_category, tool_name, target_resource, policy_id, description, evidence_snippet, ai_analysis, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    i.id,
+    i.run_id,
+    i.timestamp,
+    i.severity,
+    i.threat_category,
+    i.tool_name,
+    i.target_resource,
+    i.policy_id,
+    i.description,
+    i.evidence_snippet,
+    analysisStr,
+    i.status
+  );
+  return i;
 }

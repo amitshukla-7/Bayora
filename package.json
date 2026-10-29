@@ -8,7 +8,7 @@
     "server": "node --experimental-strip-types server/index.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "vitest run",
+    "test": "vitest run --fileParallelism=false",
     "test:sentinelflow": "vitest run tests/sentinelflow.test.ts",
     "test:unit": "vitest run",
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",

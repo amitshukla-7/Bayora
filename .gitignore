@@ -26,6 +26,8 @@ dist-ssr
 # SentinelFlow Workspace Runtime
 workspace/*.db
 workspace/*.db-journal
+workspace/*.db-wal
+workspace/*.db-shm
 workspace/output/*
 !workspace/output/.gitkeep
 workspace/outbox/*

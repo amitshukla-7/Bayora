@@ -102,7 +102,7 @@ describe('SentinelFlow Core Security Gateway & Enforcement Tests', () => {
     expect(runResult.incidentCount).toBeGreaterThanOrEqual(1);
 
     // Verify that the restricted secret was never exposed in outbox
-    const outboxFiles = readdirSync(resolve(ROOT_DIR, 'workspace', 'outbox'));
+    const outboxFiles = readdirSync(resolve(ROOT_DIR, 'workspace', 'outbox')).filter((f) => f !== '.gitkeep');
     expect(outboxFiles.length).toBe(0);
   });
 
