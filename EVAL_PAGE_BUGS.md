@@ -149,3 +149,4 @@ Every hardcoded metric, label, and identity string identified on the Red Team pa
 3. **Dynamic Header & Notifications**:
    - Implement `GET /api/user/profile` and `GET /api/notifications`.
    - Compute notification badge dynamically; hide when count is 0.
+

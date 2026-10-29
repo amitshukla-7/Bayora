@@ -63,12 +63,28 @@ import {
   runBenchmarkValidation,
   getLatestValidationReport
 } from './grading/validator.mjs';
+import {
+  getActiveEvalJob,
+  getEvalRunDetails,
+  cancelEvalRun,
+  executePreflightCheck,
+  getDynamicPresets,
+  executeEvaluationRunServer,
+  reconcileCrashedRuns
+} from './eval/runner.mjs';
+import {
+  getUserProfile,
+  updateUserProfile,
+  getNotifications,
+  markNotificationsRead
+} from './user/service.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
 // Ensure database is initialized & synchronized with models.yaml
 getDb();
 syncModelsToDatabase();
+reconcileCrashedRuns();
 
 const app = new Hono();
 
@@ -450,10 +466,85 @@ app.get('/api/evaluations/:id', (c) => {
   return c.json(evaluation);
 });
 
+/**
+ * User Profile & Notifications (Persistent SQLite Identity)
+ */
+app.get('/api/user/profile', (c) => {
+  return c.json(getUserProfile());
+});
+
+app.patch('/api/user/profile', async (c) => {
+  try {
+    const body = await c.req.json();
+    const updated = updateUserProfile(body);
+    return c.json(updated);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.get('/api/notifications', (c) => {
+  const limit = Number(c.req.query('limit')) || 20;
+  return c.json(getNotifications(limit));
+});
+
+app.post('/api/notifications/mark-read', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const result = markNotificationsRead(body?.ids);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * Server-Driven Evaluation Jobs & Preflight Check
+ */
+app.get('/api/eval/runs/active', (c) => {
+  const active = getActiveEvalJob();
+  return c.json({ active });
+});
+
+app.get('/api/eval/runs/:id', (c) => {
+  const id = c.req.param('id');
+  const run = getEvalRunDetails(id);
+  if (!run) return c.json({ error: 'Evaluation run not found' }, 404);
+  return c.json(run);
+});
+
+app.post('/api/eval/runs/:id/cancel', (c) => {
+  const id = c.req.param('id');
+  try {
+    const result = cancelEvalRun(id);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/eval/preflight', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = await executePreflightCheck(body);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.get('/api/eval/presets', (c) => {
+  const modelIdsParam = c.req.query('modelIds');
+  const modelIds = modelIdsParam ? modelIdsParam.split(',').filter(Boolean) : [];
+  const datasetId = c.req.query('datasetId') || 'ds_standard_safety_v1';
+  const presetsData = getDynamicPresets(modelIds, datasetId);
+  return c.json(presetsData);
+});
+
 app.post('/api/evaluations/launch', async (c) => {
   try {
     const body = await c.req.json();
-    const result = await executeEvaluationRun(body);
+    const result = await executeEvaluationRunServer(body);
     return c.json(result, 201);
   } catch (err) {
     return c.json({ error: err.message }, 400);
@@ -465,13 +556,16 @@ app.post('/api/evaluations/launch-stream', async (c) => {
     const body = await c.req.json();
     return streamSSE(c, async (stream) => {
       try {
-        await executeEvaluationRun({
+        const result = await executeEvaluationRunServer({
           ...body,
           onProgress: async (progressEvent) => {
             await stream.writeSSE({
               data: JSON.stringify(progressEvent)
             });
           }
+        });
+        await stream.writeSSE({
+          data: JSON.stringify({ type: 'complete', result })
         });
       } catch (err) {
         await stream.writeSSE({

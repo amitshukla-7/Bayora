@@ -16,7 +16,12 @@ import type {
   LabStatus,
   LabMutationResult,
   AdvisorIncidentResponse,
-  PlatformSettings
+  PlatformSettings,
+  UserProfile,
+  NotificationItem,
+  PreflightResult,
+  DynamicPreset,
+  ActiveEvalRun
 } from '../types';
 
 const API_BASE = '/api';
@@ -220,6 +225,92 @@ export async function launchEvaluation(payload: {
 }
 
 /**
+ * Server-Driven Evaluation Jobs & Lifecycle
+ */
+export async function fetchActiveEvalRun(): Promise<{ active: ActiveEvalRun | null }> {
+  const res = await fetch(`${API_BASE}/eval/runs/active`);
+  return handleResponse<{ active: ActiveEvalRun | null }>(res);
+}
+
+export async function fetchEvalRunStatus(id: string): Promise<ActiveEvalRun> {
+  const res = await fetch(`${API_BASE}/eval/runs/${id}`);
+  return handleResponse<ActiveEvalRun>(res);
+}
+
+export async function cancelEvalRunApi(id: string): Promise<{ success: boolean; id: string; status: string }> {
+  const res = await fetch(`${API_BASE}/eval/runs/${id}/cancel`, { method: 'POST' });
+  return handleResponse(res);
+}
+
+export async function runPreflightApi(payload: {
+  modelIds: string[];
+  datasetId?: string;
+  categories: string[];
+}): Promise<PreflightResult> {
+  const res = await fetch(`${API_BASE}/eval/preflight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<PreflightResult>(res);
+}
+
+export async function fetchDynamicPresetsApi(
+  modelIds: string[] = [],
+  datasetId = 'ds_standard_safety_v1'
+): Promise<{
+  presets: DynamicPreset[];
+  categories: string[];
+  historicalStats: { measuredCases: number; p50LatencyMs: number };
+}> {
+  const query = new URLSearchParams();
+  if (modelIds.length > 0) query.set('modelIds', modelIds.join(','));
+  if (datasetId) query.set('datasetId', datasetId);
+
+  const res = await fetch(`${API_BASE}/eval/presets?${query.toString()}`);
+  return handleResponse(res);
+}
+
+/**
+ * User Profile & Notifications
+ */
+export async function fetchUserProfile(): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/user/profile`);
+  return handleResponse<UserProfile>(res);
+}
+
+export async function updateUserProfileApi(data: Partial<UserProfile>): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/user/profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return handleResponse<UserProfile>(res);
+}
+
+export async function fetchNotifications(): Promise<{
+  notifications: NotificationItem[];
+  unreadCount: number;
+  total: number;
+}> {
+  const res = await fetch(`${API_BASE}/notifications`);
+  return handleResponse(res);
+}
+
+export async function markNotificationsReadApi(ids?: string[]): Promise<{
+  notifications: NotificationItem[];
+  unreadCount: number;
+  total: number;
+}> {
+  const res = await fetch(`${API_BASE}/notifications/mark-read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids })
+  });
+  return handleResponse(res);
+}
+
+/**
  * Findings
  */
 export async function fetchFindings(params?: {
@@ -323,10 +414,12 @@ export async function launchEvaluationStream(
     name?: string;
     presetScenario: string;
     modelIds: string[];
+    datasetId?: string;
     categories: string[];
     executionSettings?: any;
   },
   onProgress?: (event: {
+    evalId?: string;
     percent: number;
     completed: number;
     total: number;
@@ -396,7 +489,11 @@ export async function launchEvaluationStream(
     }
   }
 
-  return finalResult || { status: 'COMPLETED' };
+  if (!finalResult) {
+    throw new Error('Evaluation stream disconnected before receiving completion verdict.');
+  }
+
+  return finalResult;
 }
 
 /**

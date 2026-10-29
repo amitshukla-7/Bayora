@@ -448,13 +448,67 @@ export interface AuditVerification {
   message: string;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  avatar_initials: string;
+  organization: string;
+  updated_at?: string;
+}
+
+export interface PreflightCheck {
+  name: string;
+  status: 'PASS' | 'FAIL' | 'WARN';
+  message: string;
+}
+
+export interface PreflightResult {
+  ready: boolean;
+  checks: PreflightCheck[];
+}
+
+export interface DynamicPreset {
+  id: string;
+  title: string;
+  casesCount: number;
+  categories: string[];
+  totalCalls: number;
+  duration: string;
+  latencyBasis: string;
+  description: string;
+  enabled: boolean;
+  disabledReason?: string;
+  warning?: string;
+}
+
+export interface ActiveEvalRun {
+  id: string;
+  name: string;
+  status: string;
+  total_cases: number;
+  cases_done: number;
+  percent: number;
+  preset_scenario?: string;
+  categories?: string;
+  execution_settings?: any;
+  config_snapshot?: any;
+  error_detail?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
 export interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'warning' | 'success' | 'danger';
-  timestamp: string;
+  type: 'info' | 'warning' | 'success' | 'danger' | 'error';
+  timestamp?: string;
+  created_at?: string;
   read: boolean;
+  link?: string | null;
 }
 
 // =========================================================================

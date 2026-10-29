@@ -168,3 +168,4 @@ To eliminate brittle string matching and uphold the "AI Explains, Math Decides" 
 4. **150+ Case Gold Benchmark Dataset:**
    - Human-audited evaluation corpus with ground-truth binary breach labels.
    - Grader performance measured via confusion matrix, precision, recall, and Cohen's kappa coefficient ($\kappa \ge 0.85$ required).
+

@@ -204,3 +204,4 @@
   2. Multi-encoding canary detection: detect canaries across raw string, base64, hexadecimal, rot13, unicode homoglyphs, and zero-width whitespace encodings.
   3. Tool call execution log assertions: verify actual arguments sent to sandbox/mock tools against strict authorization allowlists.
   4. Gold evaluation dataset of 150+ rigorously labeled ground-truth cases with Cohen's kappa measurement.
+

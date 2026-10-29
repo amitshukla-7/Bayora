@@ -72,3 +72,4 @@ To eliminate all 18 security gaps and provide reusable protection across the pla
 │     - Strict timeout (5,000ms) and response cap (5MB)       │
 └─────────────────────────────────────────────────────────────┘
 ```
+

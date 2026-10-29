@@ -209,6 +209,7 @@ export function App() {
               {activePage === 'redteam' && (
                 <RedTeamPage
                   models={models}
+                  datasets={datasets}
                   onNavigate={handleNavigate}
                   onRefreshData={loadAllData}
                   onOpenUploadModel={() => {

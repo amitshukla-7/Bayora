@@ -104,3 +104,4 @@ To prevent state loss upon tab switching or page reload, state is bound to URL s
 - `category`: Selected category filter for findings.
 
 Changes to these parameters update `window.history.replaceState()`, ensuring that browser refreshes, back/forward buttons, and deep links land on the exact operator state.
+

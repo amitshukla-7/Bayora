@@ -88,3 +88,4 @@
 | `npm run build` (`tsc && vite build`) | Production build | Compile TypeScript and bundle frontend with Vite. | Clean compilation with zero TypeScript errors. | **WORKING** |
 | `npm run lint` (`oxlint`) | Code linting | Fast static analysis across codebase. | Clean lint pass; 0 warnings or errors. | **WORKING** |
 | `npm run test:200` (`scripts/test_200_cases.mjs`) | Benchmark 200 cases | Run 200 evaluation cases and output JSON. | Cycles through static templates; prone to refusal phrase false positives. | **PARTIAL** |
+

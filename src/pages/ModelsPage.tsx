@@ -509,7 +509,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <span className="text-slate-500">Last Verified:</span>
                       <span className="font-mono text-[11px] text-slate-700">
-                        {details.timestamp || details.verifiedAt ? new Date(details.timestamp || details.verifiedAt).toLocaleString() : 'Recent'}
+                        {(details.timestamp || details.verifiedAt) ? new Date(details.timestamp || details.verifiedAt || '').toLocaleString() : 'Recent'}
                       </span>
                     </div>
                     {details.pingMs !== undefined && (

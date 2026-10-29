@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Bell,
   Command,
   ShieldCheck,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react';
-import type { PageId, NotificationItem } from '../types';
+import type { PageId, NotificationItem, UserProfile } from '../types';
+import {
+  fetchUserProfile,
+  fetchNotifications,
+  markNotificationsReadApi
+} from '../services/api';
 
 interface TopBarProps {
   activePage?: PageId;
@@ -20,37 +26,51 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSelectPage,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 'notif_1',
-      title: 'Q3 Evaluation Suite Completed',
-      message: 'Comprehensive Red Team run finished with 19 passed and 2 critical findings.',
-      type: 'warning',
-      timestamp: '10m ago',
-      read: false
-    },
-    {
-      id: 'notif_2',
-      title: 'Policy POL-001 Enforced',
-      message: 'Synthetic secret disclosure blocked on DistilGPT2 evaluation.',
-      type: 'info',
-      timestamp: '25m ago',
-      read: false
-    },
-    {
-      id: 'notif_3',
-      title: 'Audit Ledger Verified',
-      message: 'SHA-256 evidence chain integrity cryptographically validated.',
-      type: 'success',
-      timestamp: '1h ago',
-      read: true
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  const loadProfile = async () => {
+    try {
+      const data = await fetchUserProfile();
+      setProfile(data);
+    } catch {
+      // Fallback
+      setProfile({
+        id: 'current_user',
+        name: 'Operator',
+        role: 'Security Engineer',
+        email: 'operator@bayora.internal',
+        avatar_initials: 'OP',
+        organization: 'Bayora Platform'
+      });
     }
-  ]);
+  };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const loadNotifications = async () => {
+    try {
+      const res = await fetchNotifications();
+      setNotifications(res.notifications || []);
+      setUnreadCount(res.unreadCount || 0);
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
 
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  useEffect(() => {
+    loadProfile();
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      const res = await markNotificationsReadApi();
+      setNotifications(res.notifications || []);
+      setUnreadCount(0);
+    } catch {}
   };
 
   return (
@@ -77,7 +97,10 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Notifications Popover Trigger */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              loadNotifications();
+            }}
             className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition-colors relative cursor-pointer"
             title="Notifications"
           >
@@ -103,7 +126,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </div>
                 {unreadCount > 0 && (
                   <button
-                    onClick={markAllRead}
+                    onClick={handleMarkAllRead}
                     className="text-[11px] text-[#8762E0] hover:underline cursor-pointer"
                   >
                     Mark all read
@@ -112,25 +135,34 @@ export const TopBar: React.FC<TopBarProps> = ({
               </div>
 
               <div className="space-y-2 max-h-72 overflow-y-auto">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`p-2.5 rounded-xl text-xs space-y-1 transition-colors ${
-                      n.read ? 'bg-slate-50/70 text-slate-600' : 'bg-purple-50/50 text-slate-800 border border-purple-100'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium flex items-center gap-1.5">
-                        {n.type === 'warning' && <AlertTriangle className="w-3 h-3 text-amber-500" />}
-                        {n.type === 'info' && <ShieldCheck className="w-3 h-3 text-[#8762E0]" />}
-                        {n.type === 'success' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                        {n.title}
-                      </span>
-                      <span className="text-[10px] text-slate-400">{n.timestamp}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    No notifications yet.
                   </div>
-                ))}
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`p-2.5 rounded-xl text-xs space-y-1 transition-colors ${
+                        n.read ? 'bg-slate-50/70 text-slate-600' : 'bg-purple-50/50 text-slate-800 border border-purple-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium flex items-center gap-1.5">
+                          {n.type === 'warning' && <AlertTriangle className="w-3 h-3 text-amber-500" />}
+                          {n.type === 'info' && <ShieldCheck className="w-3 h-3 text-[#8762E0]" />}
+                          {n.type === 'success' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                          {(!n.type || n.type === 'error') && <Info className="w-3 h-3 text-slate-400" />}
+                          {n.title}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -142,11 +174,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-100/70 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#9B7DE8] to-[#C4B5FD] text-white font-semibold text-xs flex items-center justify-center shadow-xs">
-            AS
+            {profile?.avatar_initials || 'OP'}
           </div>
           <div className="hidden sm:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-800">Amit Shukla</span>
-            <span className="text-[10px] text-slate-400">Principal Architect</span>
+            <span className="text-xs font-semibold text-slate-800">{profile?.name || 'Operator'}</span>
+            <span className="text-[10px] text-slate-400">{profile?.role || 'Principal Architect'}</span>
           </div>
         </button>
       </div>
