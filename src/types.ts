@@ -382,3 +382,63 @@ export interface NotificationItem {
   timestamp: string;
   read: boolean;
 }
+
+// =========================================================================
+// Real Isolation Probes & Mutation Lab Types (Phase 10)
+// =========================================================================
+
+export interface ProbeRawEvidence {
+  command?: string;
+  exitCode?: number;
+  stdout?: string;
+  stderr?: string;
+  errno?: string | number;
+  ps?: string;
+  error?: string;
+  [key: string]: any;
+}
+
+export interface ProbeTestResult {
+  probeId: string;
+  name: string;
+  status: 'PASS' | 'FAIL' | 'UNVERIFIED';
+  latencyMs: number;
+  evidence: ProbeRawEvidence;
+}
+
+export interface ProbeRunResult {
+  runId: string;
+  timestamp: string;
+  overallStatus: 'BREACHED' | 'UNVERIFIED' | 'VERIFIED';
+  score: number;
+  dockerAvailable: boolean;
+  results: ProbeTestResult[];
+}
+
+export interface LabStatus {
+  labModeEnabled: boolean;
+  dockerAvailable: boolean;
+  error?: string;
+}
+
+export interface LabMutationResult {
+  mutationId: string;
+  name: string;
+  executed: boolean;
+  status: string;
+  details?: string;
+  error?: string;
+}
+
+export interface AdvisorIncidentResponse {
+  id: string;
+  contextId?: string;
+  source: 'llm' | 'template';
+  incidentSummary: string;
+  rootCause: string;
+  mitigations: string[];
+  schemaValid: boolean;
+  latencyMs: number;
+  advisoryBadge: string;
+}
+

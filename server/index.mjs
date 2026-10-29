@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
 import {
   getDb,
@@ -226,6 +227,30 @@ app.post('/api/evaluations/launch', async (c) => {
     const body = await c.req.json();
     const result = await executeEvaluationRun(body);
     return c.json(result, 201);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/evaluations/launch-stream', async (c) => {
+  try {
+    const body = await c.req.json();
+    return streamSSE(c, async (stream) => {
+      try {
+        await executeEvaluationRun({
+          ...body,
+          onProgress: async (progressEvent) => {
+            await stream.writeSSE({
+              data: JSON.stringify(progressEvent)
+            });
+          }
+        });
+      } catch (err) {
+        await stream.writeSSE({
+          data: JSON.stringify({ type: 'error', error: err.message })
+        });
+      }
+    });
   } catch (err) {
     return c.json({ error: err.message }, 400);
   }

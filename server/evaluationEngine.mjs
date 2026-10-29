@@ -13,7 +13,8 @@ export async function executeEvaluationRun({
   presetScenario = 'Standard',
   modelIds = [],
   categories = [],
-  executionSettings = {}
+  executionSettings = {},
+  onProgress = null
 }) {
   const db = getDb();
   const runHash = crypto.randomBytes(4).toString('hex');
@@ -107,10 +108,25 @@ export async function executeEvaluationRun({
   `);
 
   let findingCounter = 1;
+  let completedCount = 0;
 
   // 6. Execute tests against models (with fail-closed error handling)
   for (const { record: model, adapter } of modelEntries) {
     for (const testCase of selectedCases) {
+      if (onProgress) {
+        try {
+          await onProgress({
+            type: 'progress',
+            completed: completedCount,
+            total: totalCasesCount,
+            percent: totalCasesCount > 0 ? Math.round((completedCount / totalCasesCount) * 100) : 0,
+            step: `Evaluating case ${completedCount + 1} of ${totalCasesCount} (${testCase.category}) on ${model.name || model.id}...`,
+            currentModel: model.name || model.id,
+            currentCategory: testCase.category
+          });
+        } catch {}
+      }
+
       let modelResult;
       const testStartTime = Date.now();
 
@@ -228,6 +244,7 @@ export async function executeEvaluationRun({
           mitigation: evalOutcome.mitigation
         });
       }
+      completedCount++;
     }
   }
 
@@ -289,8 +306,9 @@ export async function executeEvaluationRun({
     console.warn('Failed to append evaluation audit event:', err.message);
   }
 
-  return {
+  const finalResult = {
     id: evalId,
+    evalId,
     name,
     status: 'COMPLETED',
     totalCases: totalCasesCount,
@@ -301,4 +319,19 @@ export async function executeEvaluationRun({
     durationMs,
     findings: createdFindings
   };
+
+  if (onProgress) {
+    try {
+      await onProgress({
+        type: 'complete',
+        completed: totalCasesCount,
+        total: totalCasesCount,
+        percent: 100,
+        step: 'Evaluation complete! Finalizing findings report...',
+        result: finalResult
+      });
+    } catch {}
+  }
+
+  return finalResult;
 }

@@ -9,8 +9,8 @@ import {
   Lock,
   ArrowLeft
 } from 'lucide-react';
-import type { Evaluation, Finding, PageId, AuditVerification } from '../types';
-import { fetchEvaluations, fetchEvaluationById, verifyAuditLedger } from '../services/api';
+import type { Evaluation, Finding, PageId, AuditVerification, AdvisorIncidentResponse } from '../types';
+import { fetchEvaluations, fetchEvaluationById, verifyAuditLedger, explainIncident } from '../services/api';
 
 interface EvaluationResultsPageProps {
   initialEvaluationId?: string;
@@ -28,6 +28,8 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
   const [currentEval, setCurrentEval] = useState<Evaluation | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [advisorReport, setAdvisorReport] = useState<AdvisorIncidentResponse | null>(null);
+  const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -57,6 +59,25 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
       });
     }
   }, [selectedEvalId]);
+
+  useEffect(() => {
+    if (selectedFinding) {
+      setIsLoadingAdvisor(true);
+      explainIncident({
+        contextId: selectedFinding.id,
+        policyId: selectedFinding.policy_violated || 'POL-001',
+        category: selectedFinding.category,
+        testPrompt: selectedFinding.test_case_prompt,
+        observedResponse: selectedFinding.observed_response,
+        evidence: selectedFinding.evidence
+      })
+        .then((adv) => setAdvisorReport(adv))
+        .catch(() => setAdvisorReport(null))
+        .finally(() => setIsLoadingAdvisor(false));
+    } else {
+      setAdvisorReport(null);
+    }
+  }, [selectedFinding]);
 
   const filteredFindings = findings.filter((f) => {
     const matchesSearch =
@@ -391,12 +412,42 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
                 </div>
               </div>
 
+              {/* Advisory Guidance Section */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#7952D8] bg-[#f4efff] border border-[#e5d9fd] px-2.5 py-0.5 rounded-full">
+                    Advisory – not a decision
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {isLoadingAdvisor ? (
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                        <span className="w-2 h-2 rounded-full bg-[#9B7DE8] animate-ping" />
+                        Querying AI Advisor...
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                        source: {advisorReport?.source || 'template'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {advisorReport?.incidentSummary && (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 text-xs">
+                    <span className="font-bold text-slate-900 block mb-0.5 text-[11px] uppercase">Incident Summary:</span>
+                    <p className="leading-relaxed">{advisorReport.incidentSummary}</p>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
                   4. Root Cause & Violated Guardrail
                 </span>
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-1">
-                  <div className="font-semibold text-slate-900">{selectedFinding.explanation}</div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-1.5">
+                  <div className="font-semibold text-slate-900 leading-relaxed">
+                    {advisorReport?.rootCause || selectedFinding.explanation}
+                  </div>
                   {selectedFinding.policy_violated && (
                     <div className="text-[11px] font-mono text-[#7952D8]">
                       Triggered Policy: {selectedFinding.policy_violated}
@@ -410,10 +461,20 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
 
               <div className="space-y-1">
                 <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
-                  5. Recommended Defensive Mitigation
+                  5. Recommended Defensive Mitigations
                 </span>
-                <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200 text-[#7952D8] font-medium leading-relaxed">
-                  {selectedFinding.mitigation}
+                <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200 text-[#7952D8] text-xs space-y-1.5">
+                  {advisorReport?.mitigations && advisorReport.mitigations.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1 text-slate-800 font-medium leading-relaxed">
+                      {advisorReport.mitigations.map((m, idx) => (
+                        <li key={idx} className="text-xs">
+                          <span className="text-slate-800">{m}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="font-medium leading-relaxed">{selectedFinding.mitigation}</div>
+                  )}
                 </div>
               </div>
             </div>

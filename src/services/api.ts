@@ -7,7 +7,11 @@ import type {
   SecurityEvent,
   DashboardSummary,
   AuditRecord,
-  AuditVerification
+  AuditVerification,
+  ProbeRunResult,
+  LabStatus,
+  LabMutationResult,
+  AdvisorIncidentResponse
 } from '../types';
 
 const API_BASE = '/api';
@@ -181,3 +185,135 @@ export async function resetDemoData(): Promise<{ success: boolean; message: stri
   const res = await fetch(`${API_BASE}/admin/reset`, { method: 'POST' });
   return handleResponse<{ success: boolean; message: string }>(res);
 }
+
+/**
+ * Isolation Probes (T01 - T05)
+ */
+export async function runIsolationProbes(): Promise<ProbeRunResult> {
+  const res = await fetch(`${API_BASE}/probes/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return handleResponse<ProbeRunResult>(res);
+}
+
+/**
+ * Mutation Lab (M1-M5, B1)
+ */
+export async function fetchLabStatus(): Promise<LabStatus> {
+  const res = await fetch(`${API_BASE}/lab/status`);
+  return handleResponse<LabStatus>(res);
+}
+
+export async function applyLabMutation(mutationId: string): Promise<LabMutationResult> {
+  const res = await fetch(`${API_BASE}/lab/mutate/${encodeURIComponent(mutationId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return handleResponse<LabMutationResult>(res);
+}
+
+/**
+ * Real AI Advisor (Advisory Guidance)
+ */
+export async function explainIncident(payload: {
+  contextId?: string;
+  policyId?: string;
+  category?: string;
+  testPrompt?: string;
+  observedResponse?: string;
+  evidence?: string;
+  preferredModel?: string;
+}): Promise<AdvisorIncidentResponse> {
+  const res = await fetch(`${API_BASE}/advisor/explain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<AdvisorIncidentResponse>(res);
+}
+
+/**
+ * Streaming Red Team Evaluation Runner (Real-Time Chunked Progress, Zero Fake Delays)
+ */
+export async function launchEvaluationStream(
+  payload: {
+    name?: string;
+    presetScenario: string;
+    modelIds: string[];
+    categories: string[];
+    executionSettings?: any;
+  },
+  onProgress?: (event: {
+    percent: number;
+    completed: number;
+    total: number;
+    step: string;
+    currentModel?: string;
+    currentCategory?: string;
+  }) => void
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/evaluations/launch-stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new Error('Response stream unavailable from evaluation runner.');
+  }
+
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let finalResult: any = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop() || '';
+
+    for (const chunk of lines) {
+      const trimmed = chunk.trim();
+      if (!trimmed) continue;
+      for (const line of trimmed.split('\n')) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'progress' && onProgress) {
+              onProgress(data);
+            } else if (data.type === 'complete') {
+              finalResult = data.result;
+            }
+          } catch {
+            // Ignore parse failures on partial SSE lines
+          }
+        }
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    for (const line of buffer.trim().split('\n')) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === 'complete') {
+            finalResult = data.result;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  return finalResult || { status: 'COMPLETED' };
+}
+

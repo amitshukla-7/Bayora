@@ -12,7 +12,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import type { Model, PageId } from '../types';
-import { launchEvaluation } from '../services/api';
+import { launchEvaluationStream } from '../services/api';
 
 interface RedTeamPageProps {
   models: Model[];
@@ -152,44 +152,37 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
 
     setErrorMsg('');
     setIsExecuting(true);
-    setProgress(5);
-    setProgressStep('Initializing adversarial test cases and loading model adapters...');
+    setProgress(0);
+    setProgressStep('Connecting to model adapters and preparing deterministic test cases...');
 
     try {
-      // Animated realistic progress simulation
-      await new Promise(r => setTimeout(r, 400));
-      setProgress(25);
-      setProgressStep('Dispatching synthetic prompt injection and jailbreak cases to model adapters...');
-
-      await new Promise(r => setTimeout(r, 500));
-      setProgress(60);
-      setProgressStep('Running security evaluators against active policies (POL-001 - POL-005)...');
-
-      await new Promise(r => setTimeout(r, 400));
-      setProgress(85);
-      setProgressStep('Synthesizing risk scores and appending SHA-256 hash-chained audit record...');
-
-      const result = await launchEvaluation({
-        name: `${selectedPreset} Evaluation`,
-        presetScenario: selectedPreset,
-        modelIds: selectedModelIds,
-        categories: selectedCategories,
-        executionSettings: {
-          maxTestCases: maxCases,
-          randomSeed,
-          concurrency,
-          objective
+      const result = await launchEvaluationStream(
+        {
+          name: `${selectedPreset} Evaluation`,
+          presetScenario: selectedPreset,
+          modelIds: selectedModelIds,
+          categories: selectedCategories,
+          executionSettings: {
+            maxTestCases: maxCases,
+            randomSeed,
+            concurrency,
+            objective
+          }
+        },
+        (progressEvent) => {
+          setProgress(progressEvent.percent);
+          setProgressStep(progressEvent.step);
         }
-      });
+      );
 
       setProgress(100);
       setProgressStep('Evaluation complete! Opening detailed findings report...');
-
       await onRefreshData();
-      await new Promise(r => setTimeout(r, 500));
 
-      // Navigate to Evaluation Results page with new eval ID!
-      onNavigate('evaluations', result.evalId);
+      const newEvalId = result?.evalId || result?.id;
+      if (newEvalId) {
+        onNavigate('evaluations', newEvalId);
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Evaluation launch failed.');
       setIsExecuting(false);
