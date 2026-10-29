@@ -245,8 +245,17 @@ export async function fetchLabStatus(): Promise<LabStatus> {
   return handleResponse<LabStatus>(res);
 }
 
-export async function applyLabMutation(mutationId: string): Promise<LabMutationResult> {
+export async function applyLabMutation(mutationId: string, options: Record<string, any> = {}): Promise<LabMutationResult> {
   const res = await fetch(`${API_BASE}/lab/mutate/${encodeURIComponent(mutationId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options)
+  });
+  return handleResponse<LabMutationResult>(res);
+}
+
+export async function restoreLabBaseline(): Promise<LabMutationResult> {
+  const res = await fetch(`${API_BASE}/lab/restore-baseline`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });

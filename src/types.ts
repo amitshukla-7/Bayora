@@ -468,17 +468,58 @@ export interface ProbeRunResult {
   results: ProbeTestResult[];
 }
 
+export interface StepContractItem {
+  step: number;
+  name: string;
+  status: string;
+  details?: string;
+}
+
+export interface RetestResultItem {
+  caseId: string;
+  category: string;
+  prompt: string;
+  verdict: 'Passed' | 'Warning' | 'Failed';
+  breachDetected: boolean;
+  oracleReason: string;
+  latencyMs: number;
+}
+
+export interface LabCatalogItem {
+  id: string;
+  legacyId?: string;
+  tier: 'TIER_A' | 'TIER_B';
+  name: string;
+  target: string;
+  description: string;
+  requiresDocker: boolean;
+}
+
 export interface LabStatus {
   labModeEnabled: boolean;
   dockerAvailable: boolean;
+  activeMutation?: any;
+  requiresDockerNotice?: string | null;
+  catalog?: {
+    tierA: LabCatalogItem[];
+    tierB: LabCatalogItem[];
+  };
   error?: string;
 }
 
 export interface LabMutationResult {
   mutationId: string;
   name: string;
+  tier?: string;
   executed: boolean;
   status: string;
+  fpBefore?: string;
+  fpAfter?: string;
+  fingerprintChanged?: boolean;
+  breachDetected?: boolean;
+  retestCount?: number;
+  retestResults?: RetestResultItem[];
+  stepLog?: StepContractItem[];
   details?: string;
   error?: string;
 }

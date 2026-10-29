@@ -29,7 +29,12 @@ import {
 } from './attestation.mjs';
 import { syncModelsToDatabase } from './adapters/factory.mjs';
 import { generateIncidentAdvisory } from './advisor.mjs';
-import { executeMutation } from './mutations.mjs';
+import {
+  executeMutation,
+  getLabStatus,
+  restoreBaseline,
+  remediateCrashedMutations
+} from './mutations.mjs';
 import { checkDockerAvailable, runAllProbes } from './probes/runner.mjs';
 import { checkSystemHealth } from './health.mjs';
 import {
@@ -434,24 +439,34 @@ app.post('/api/probes/run', async (c) => {
 });
 
 /**
- * Mutation Lab (M1-M5, B1)
+ * Mutation Lab (Tier A & Tier B, 6-Step Execution Contract)
  */
 app.get('/api/lab/status', async (c) => {
-  const docker = await checkDockerAvailable();
-  return c.json({
-    labModeEnabled: process.env.BAYORA_LAB_MODE === '1',
-    dockerAvailable: docker.available,
-    requiresDockerNotice: !docker.available ? 'REQUIRES DOCKER LAB' : null
-  });
+  const status = await getLabStatus();
+  return c.json(status);
 });
 
 app.post('/api/lab/mutate/:id', async (c) => {
   const mutationId = c.req.param('id');
+  let body = {};
   try {
-    const result = await executeMutation(mutationId);
+    body = await c.req.json();
+  } catch {}
+
+  try {
+    const result = await executeMutation(mutationId, body);
     return c.json(result);
   } catch (err) {
     return c.json({ error: err.message }, 403);
+  }
+});
+
+app.post('/api/lab/restore-baseline', async (c) => {
+  try {
+    const result = await restoreBaseline();
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
   }
 });
 
@@ -466,6 +481,10 @@ app.post('/api/admin/reset', (c) => {
 export { app };
 
 if (process.env.NODE_ENV !== 'test') {
+  process.env.BAYORA_LAB_MODE = process.env.BAYORA_LAB_MODE || '1';
+  remediateCrashedMutations().catch((err) => {
+    console.warn('[STARTUP] Mutation auto-remediation failed:', err.message);
+  });
   serve(
     {
       fetch: app.fetch,

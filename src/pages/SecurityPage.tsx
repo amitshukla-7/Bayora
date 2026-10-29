@@ -19,7 +19,8 @@ import {
   History,
   Sparkles,
   ArrowRight,
-  Info
+  Info,
+  RotateCcw
 } from 'lucide-react';
 import type {
   Policy,
@@ -41,7 +42,8 @@ import {
   testPolicyInteractively,
   runIsolationProbes,
   fetchLabStatus,
-  applyLabMutation
+  applyLabMutation,
+  restoreLabBaseline
 } from '../services/api';
 
 interface SecurityPageProps {
@@ -88,9 +90,11 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
 
   // Mutation Lab State
   const [labStatus, setLabStatus] = useState<LabStatus | null>(null);
+  const [selectedMutationTier, setSelectedMutationTier] = useState<'TIER_A' | 'TIER_B'>('TIER_A');
   const [activeMutationId, setActiveMutationId] = useState<string | null>(null);
   const [mutationFeedback, setMutationFeedback] = useState<LabMutationResult | null>(null);
   const [isApplyingMutation, setIsApplyingMutation] = useState(false);
+  const [isRestoringBaseline, setIsRestoringBaseline] = useState(false);
 
   const loadCriticalStatus = async () => {
     try {
@@ -254,6 +258,22 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
     }
   };
 
+  const handleRestoreBaseline = async () => {
+    setIsRestoringBaseline(true);
+    try {
+      const result = await restoreLabBaseline();
+      setMutationFeedback(result);
+      const updatedProbes = await runIsolationProbes();
+      setProbeResult(updatedProbes);
+      await onRefreshData();
+      await loadCriticalStatus();
+    } catch (err: any) {
+      alert(`Failed to restore baseline: ${err.message}`);
+    } finally {
+      setIsRestoringBaseline(false);
+    }
+  };
+
   // Default probes catalog (G1-G5 / T01-T05)
   const probeCatalog = [
     {
@@ -298,48 +318,79 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
     }
   ];
 
-  const mutationCatalog = [
+  const tierAMutations = [
     {
-      id: 'M1',
-      code: 'M1: Kill Model Gateway',
-      targetProbe: 'T04 / Gateway',
-      description: 'Stops model-gateway container to test fail-closed behavior on unreachable inference proxy.'
+      id: 'M1-A',
+      code: 'M1-A: Relax Secret Entropy & Regex',
+      target: 'POL-001 / Leakage Gate',
+      description: 'Raises secret entropy ceiling to 99.0 and removes key patterns to simulate credential leakage defense failure.',
+      isNegative: false
     },
     {
-      id: 'M2',
-      code: 'M2: Network Partition',
-      targetProbe: 'T02 / Network',
-      description: 'Disconnects blue container from bridge network to simulate inter-service network partition.'
+      id: 'M2-A',
+      code: 'M2-A: Disable Injection Delimiters',
+      target: 'POL-002 / Injection Gate',
+      description: 'Strips prompt delimiters and instruction override patterns to verify fail-closed inbound gateway interception.',
+      isNegative: false
     },
     {
-      id: 'M3',
-      code: 'M3: Drop Storage Access',
-      targetProbe: 'T03 / Storage',
-      description: 'Stops object storage container to verify fail-closed authorization on storage unavailability.'
+      id: 'M3-A',
+      code: 'M3-A: Add Wildcard * to Tool Allowlist',
+      target: 'POL-003 / Tool Gate',
+      description: 'Injects wildcard destination into tool allowlist to test boundary containment against arbitrary exfiltration.',
+      isNegative: false
     },
     {
-      id: 'M4',
-      code: 'M4: Shared Gateway Cache',
-      targetProbe: 'T04 / Canary',
-      description: 'Forces gateway proxy into shared KV context cache mode to test canary bleed detection.'
+      id: 'M4-A',
+      code: 'M4-A: Disable Canary Isolation',
+      target: 'POL-001 / Session Canary',
+      description: 'Disables cross-session canary token tracking to test KV context isolation failure.',
+      isNegative: false
     },
     {
-      id: 'M5',
-      code: 'M5: Relax Hardening',
-      targetProbe: 'T05 / Workload',
-      description: 'Simulates container configuration drift with writable root and excess capabilities.'
+      id: 'B1-A',
+      code: 'B1-A: Benign Label Modification',
+      target: 'Negative Control',
+      description: 'Modifies non-security metadata label. Asserts RFC 8785 fingerprint invariance holds and NO breach detected (0 false positives).',
+      isNegative: true
+    }
+  ];
+
+  const tierBMutations = [
+    {
+      id: 'M1-B',
+      code: 'M1-B: Kill Model Gateway',
+      target: 'sentinelflow_gateway',
+      description: 'Stops model-gateway container via dockerode to verify fail-closed behavior on proxy unavailability.',
+      isNegative: false
     },
     {
-      id: 'B1',
-      code: 'B1: Benign Label Drift',
-      targetProbe: 'Negative Control',
-      description: 'Modifies benign operator metadata labels without altering security posture (stays VERIFIED).'
+      id: 'M2-B',
+      code: 'M2-B: Network Partition',
+      target: 'sentinelflow_blue',
+      description: 'Disconnects runner container from Docker bridge network to test microsegmentation failure.',
+      isNegative: false
     },
     {
-      id: 'REMEDIATE',
-      code: 'Remediate to Baseline',
-      targetProbe: 'All Guarantees',
-      description: 'Restores all container mounts, networks, authz modes, and hardening flags to certified baseline.'
+      id: 'M3-B',
+      code: 'M3-B: Drop Storage Access',
+      target: 'sentinelflow_minio',
+      description: 'Stops object storage container to verify fail-closed handling on storage unavailability.',
+      isNegative: false
+    },
+    {
+      id: 'M4-B',
+      code: 'M4-B: Force Shared KV Cache',
+      target: 'Local Proxy Cache',
+      description: 'Forces proxy into shared tenant KV cache mode to measure cross-session bleed.',
+      isNegative: false
+    },
+    {
+      id: 'M5-B',
+      code: 'M5-B: Relax Container Hardening',
+      target: 'Security Context',
+      description: 'Removes readOnlyRoot mount and enables excess Linux capabilities on runner container.',
+      isNegative: false
     }
   ];
 
@@ -566,108 +617,252 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
         </div>
       </div>
 
-      {/* SECTION 2: ADVERSARIAL MUTATION LAB (M1 - M5, B1) */}
-      <div className="bayora-card p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+      {/* SECTION 2: ADVERSARIAL MUTATION LAB (TIER A & TIER B, 6-STEP CONTRACT) */}
+      <div className="bayora-card p-6 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
               <AlertOctagon className="w-5 h-5 text-amber-600" />
               <h2 className="text-base font-bold text-slate-900">
-                Adversarial Mutation Lab (M1–M5, B1)
+                Adversarial Mutation Lab (Tier A & Tier B Resilience)
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Inject controlled faults to verify probe detection sensitivity and prove state machine recovery transitions.
+              Simulate policy & container faults, verify probe sensitivity, and execute the complete 6-step resilience contract.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-mono px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+              TIER A: DOCKER-FREE (READY)
+            </span>
             <span
-              className={`text-[10px] font-mono px-2.5 py-1 rounded-xl border ${
-                labStatus?.dockerAvailable && labStatus?.labModeEnabled
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              className={`text-[10px] font-mono px-2.5 py-1 rounded-xl border font-bold ${
+                labStatus?.dockerAvailable
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-slate-100 text-slate-500 border-slate-200'
               }`}
             >
-              {labStatus?.dockerAvailable && labStatus?.labModeEnabled
-                ? 'LAB MODE ACTIVE'
-                : 'REQUIRES DOCKER LAB (docker-compose.yml)'}
+              TIER B: {labStatus?.dockerAvailable ? 'DOCKER ONLINE' : 'DOCKER OFFLINE'}
             </span>
+
+            {/* Panic Button: Restore Certified Baseline */}
+            <button
+              onClick={handleRestoreBaseline}
+              disabled={isRestoringBaseline}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              title="Forcibly restore SQLite policies and Docker containers to certified seed baseline"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isRestoringBaseline ? 'animate-spin' : ''}`} />
+              <span>{isRestoringBaseline ? 'Restoring...' : 'Restore Certified Baseline'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Notice Banner if Docker is Unavailable */}
-        {(!labStatus?.dockerAvailable || !labStatus?.labModeEnabled) && (
-          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
+        {/* Tier Selector Segmented Tabs */}
+        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setSelectedMutationTier('TIER_A')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedMutationTier === 'TIER_A'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Tier A: Policy & Invariant Mutations (Docker-Free)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMutationTier('TIER_B')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedMutationTier === 'TIER_B'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Tier B: Container & Network Partition (Docker)
+          </button>
+        </div>
+
+        {/* Tier B Offline Warning */}
+        {selectedMutationTier === 'TIER_B' && !labStatus?.dockerAvailable && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
             <Info className="w-4 h-4 text-amber-600 shrink-0" />
             <div className="leading-relaxed">
-              Mutation Lab controls require a running Docker lab environment (<code>docker compose up -d</code>) and <code>BAYORA_LAB_MODE=1</code>.
-              When running without Docker, container fault injections are safely disabled to preserve platform integrity.
+              <strong>Requires Docker daemon:</strong> Tier B mutations require container orchestration (<code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-300">docker compose up -d</code>).
+              Tier B controls are disabled. You can run all <strong>Tier A mutations</strong> immediately without Docker.
             </div>
           </div>
         )}
 
-        {/* Mutation Action Buttons */}
+        {/* Mutation Action Buttons Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {mutationCatalog.map((mut) => {
-            const isRemediate = mut.id === 'REMEDIATE';
-            const isNegative = mut.id === 'B1';
+          {(selectedMutationTier === 'TIER_A' ? tierAMutations : tierBMutations).map((mut) => {
             const isRunning = isApplyingMutation && activeMutationId === mut.id;
-            const isDisabled = (!labStatus?.dockerAvailable || !labStatus?.labModeEnabled) && !isRemediate;
+            const isTierBDisabled = selectedMutationTier === 'TIER_B' && !labStatus?.dockerAvailable;
 
             return (
               <div
                 key={mut.id}
-                className="p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between gap-3 text-xs"
+                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 text-xs transition-all ${
+                  isTierBDisabled
+                    ? 'bg-slate-50/50 border-slate-200 opacity-60'
+                    : mut.isNegative
+                    ? 'bg-emerald-50/30 border-emerald-200'
+                    : 'bg-slate-50/70 border-slate-200'
+                }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-slate-900">{mut.code}</span>
-                    <span className="text-[10px] font-mono text-slate-400">{mut.targetProbe}</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-slate-900 font-mono">{mut.code}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {mut.target}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-normal">
                     {mut.description}
                   </p>
                 </div>
 
                 <button
                   onClick={() => handleApplyMutation(mut.id)}
-                  disabled={isDisabled || isApplyingMutation}
-                  className={`w-full py-2 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:cursor-not-allowed ${
-                    isRemediate
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                      : isNegative
-                      ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                  disabled={isTierBDisabled || isApplyingMutation}
+                  className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    isTierBDisabled
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      : mut.isNegative
+                      ? 'bg-slate-800 hover:bg-slate-900 text-white shadow-xs'
                       : 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200'
                   } disabled:opacity-50`}
+                  title={isTierBDisabled ? 'Requires Docker daemon. Run Tier A mutations or start Docker.' : `Inject fault ${mut.id}`}
                 >
                   <Play className={`w-3 h-3 ${isRunning ? 'animate-spin' : ''}`} />
-                  <span>{isRunning ? 'Injecting Fault...' : isRemediate ? 'Remediate Baseline' : `Inject ${mut.id}`}</span>
+                  <span>{isRunning ? 'Executing 6-Step Contract...' : mut.isNegative ? 'Run Negative Control' : `Inject ${mut.id}`}</span>
                 </button>
               </div>
             );
           })}
         </div>
 
-        {/* Mutation Execution Feedback */}
+        {/* 6-Step Execution Contract Visualizer */}
         {mutationFeedback && (
-          <div
-            className={`p-3.5 rounded-2xl text-xs flex items-center justify-between border ${
-              mutationFeedback.executed
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : 'bg-amber-50 text-amber-800 border-amber-200'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-bold uppercase font-mono">[{mutationFeedback.mutationId}]</span>
-              <span>{mutationFeedback.details || mutationFeedback.error || mutationFeedback.status}</span>
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 animate-in fade-in duration-150 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-900 text-white">
+                  [{mutationFeedback.mutationId}]
+                </span>
+                <span className="font-bold text-slate-900">{mutationFeedback.name}</span>
+                <span
+                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                    mutationFeedback.breachDetected
+                      ? 'bg-red-100 text-red-700 border border-red-300'
+                      : mutationFeedback.status === 'RESTORED'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                      : 'bg-blue-100 text-blue-700 border border-blue-300'
+                  }`}
+                >
+                  {mutationFeedback.breachDetected ? 'BREACH DETECTED' : mutationFeedback.status}
+                </span>
+              </div>
+              <button
+                onClick={() => setMutationFeedback(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setMutationFeedback(null)}
-              className="text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+
+            {/* 6 Steps Progress Ribbon */}
+            {mutationFeedback.stepLog && mutationFeedback.stepLog.length > 0 && (
+              <div className="space-y-2">
+                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">
+                  6-Step Execution Contract:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {mutationFeedback.stepLog.map((s) => (
+                    <div
+                      key={s.step}
+                      className="p-2.5 rounded-xl bg-white border border-slate-200 flex flex-col justify-between gap-1 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-[10px] text-slate-400">Step {s.step}</span>
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                            s.status === 'PASS' || s.status === 'COMPLETED' || s.status === 'CLEAN_PASS'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : s.status === 'BREACH_DETECTED' || s.status === 'APPLIED'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {s.status}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-800 text-[11px] leading-tight truncate">
+                        {s.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Selective Retest Results Table */}
+            {mutationFeedback.retestResults && mutationFeedback.retestResults.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">
+                    Selective Retest Results ({mutationFeedback.retestResults.length} cases):
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Fingerprint Invariant: {mutationFeedback.fingerprintChanged ? 'DRIFT CONFIRMED' : 'UNCHANGED (BENIGN)'}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100 bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  {mutationFeedback.retestResults.map((r, idx) => (
+                    <div key={idx} className="p-3 flex items-start justify-between gap-3 text-xs">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
+                            {r.caseId}
+                          </span>
+                          <span className="font-semibold text-slate-800">{r.prompt}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Oracle Verdict: <strong className={r.breachDetected ? 'text-red-600' : 'text-emerald-600'}>{r.oracleReason}</strong>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          r.verdict === 'Failed'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {r.verdict}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 1-Click Baseline Restore button */}
+            {mutationFeedback.status === 'APPLIED' && (
+              <div className="pt-2 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={handleRestoreBaseline}
+                  disabled={isRestoringBaseline}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-2"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${isRestoringBaseline ? 'animate-spin' : ''}`} />
+                  <span>Restore Certified Baseline (1-Click)</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

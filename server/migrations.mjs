@@ -489,6 +489,31 @@ export const MIGRATIONS = [
         }
       }
     }
+  },
+  {
+    version: 5,
+    name: '005_mutation_lab_state',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS mutation_runs (
+          id TEXT PRIMARY KEY,
+          mutation_id TEXT NOT NULL,
+          tier TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL,
+          fingerprint_before TEXT,
+          fingerprint_after TEXT,
+          fingerprint_changed INTEGER NOT NULL DEFAULT 1,
+          breach_detected INTEGER NOT NULL DEFAULT 0,
+          retest_count INTEGER NOT NULL DEFAULT 0,
+          retest_results_json TEXT DEFAULT '[]',
+          step_log_json TEXT DEFAULT '[]',
+          backup_state_json TEXT DEFAULT '{}',
+          applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+          restored_at TEXT
+        );
+      `);
+    }
   }
 ];
 
