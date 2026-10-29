@@ -88,3 +88,4 @@ export class OllamaAdapter extends BaseModelAdapter {
     }
   }
 }
+

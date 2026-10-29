@@ -758,23 +758,39 @@ export function createFinding(f) {
 
 export function getAllSecurityEvents(limit = 30) {
   const db = getDb();
-  return db.prepare('SELECT * FROM security_events ORDER BY timestamp DESC LIMIT ?').all(limit);
+  return db.prepare(`
+    SELECT 
+      id,
+      COALESCE(timestamp, created_at, datetime('now')) AS timestamp,
+      severity,
+      COALESCE(category, 'General') AS category,
+      COALESCE(description, message, 'Security Event') AS description,
+      COALESCE(blocked, 1) AS blocked,
+      COALESCE(target, 'gateway') AS target,
+      COALESCE(is_synthetic, 0) AS is_synthetic
+    FROM security_events 
+    ORDER BY COALESCE(timestamp, created_at) DESC 
+    LIMIT ?
+  `).all(limit);
 }
 
 export function createSecurityEvent(ev) {
   const db = getDb();
-  const id = ev.id || 'EVT-' + randomUUID().substring(0, 6).toUpperCase();
+  const id = ev.id || 'EVT-' + crypto.randomBytes(3).toString('hex').toUpperCase();
   const now = new Date().toISOString();
 
   db.prepare(`
-    INSERT INTO security_events (id, timestamp, severity, category, description, blocked, target, is_synthetic)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO security_events (
+      id, timestamp, created_at, severity, category, description, message, blocked, target, is_synthetic
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     ev.timestamp || now,
+    now,
     ev.severity || 'High',
-    ev.category,
-    ev.description,
+    ev.category || 'General',
+    ev.description || ev.message || 'Security Event',
+    ev.message || ev.description || '',
     ev.blocked !== undefined ? (ev.blocked ? 1 : 0) : 1,
     ev.target || 'gateway',
     ev.is_synthetic ? 1 : 0

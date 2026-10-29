@@ -157,3 +157,4 @@ export async function verifyAttestationTicket(ticket) {
     expiresAt
   };
 }
+

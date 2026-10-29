@@ -263,3 +263,4 @@ appendAuditEvent({
 });
 
 console.log('✅ Synthetic development fixtures inserted successfully (all flagged is_synthetic = 1).');
+

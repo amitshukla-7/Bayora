@@ -51,13 +51,13 @@ export function App() {
   const loadAllData = async () => {
     try {
       const [
-        summaryData,
-        modelsData,
-        policiesData,
-        datasetsData,
-        findingsData,
-        eventsData
-      ] = await Promise.all([
+        summaryRes,
+        modelsRes,
+        policiesRes,
+        datasetsRes,
+        findingsRes,
+        eventsRes
+      ] = await Promise.allSettled([
         fetchDashboardSummary(),
         fetchModels(),
         fetchPolicies(),
@@ -66,12 +66,31 @@ export function App() {
         fetchSecurityEvents()
       ]);
 
-      setSummary(summaryData);
-      setModels(modelsData.models || []);
-      setPolicies(policiesData.policies || []);
-      setDatasets(datasetsData.datasets || []);
-      setFindings(findingsData.findings || []);
-      setEvents(eventsData.events || []);
+      if (summaryRes.status === 'fulfilled') {
+        setSummary(summaryRes.value);
+      } else if (!summary) {
+        setSummary({
+          totalRuns: 0,
+          passedRuns: 0,
+          warningRuns: 0,
+          failedRuns: 0,
+          passRate: null,
+          warningRate: null,
+          failedRate: null,
+          ribbonValid: true,
+          syntheticDataMode: false,
+          trends7d: [],
+          securityOverview: [],
+          benchmarkProfile: [],
+          attackSuccess: []
+        });
+      }
+
+      if (modelsRes.status === 'fulfilled') setModels(modelsRes.value.models || []);
+      if (policiesRes.status === 'fulfilled') setPolicies(policiesRes.value.policies || []);
+      if (datasetsRes.status === 'fulfilled') setDatasets(datasetsRes.value.datasets || []);
+      if (findingsRes.status === 'fulfilled') setFindings(findingsRes.value.findings || []);
+      if (eventsRes.status === 'fulfilled') setEvents(eventsRes.value.events || []);
     } catch (err) {
       console.error('Failed to load Bayora platform data:', err);
     } finally {

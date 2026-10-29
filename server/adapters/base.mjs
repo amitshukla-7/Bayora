@@ -59,3 +59,4 @@ export class BaseModelAdapter {
     return { ok: false, message: 'Healthcheck not implemented' };
   }
 }
+

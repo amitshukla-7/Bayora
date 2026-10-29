@@ -334,12 +334,17 @@ export const MIGRATIONS = [
       db.exec(`
         CREATE TABLE IF NOT EXISTS security_events (
           id TEXT PRIMARY KEY,
-          event_type TEXT NOT NULL,
-          severity TEXT NOT NULL,
-          message TEXT NOT NULL,
+          timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          event_type TEXT,
+          severity TEXT NOT NULL DEFAULT 'High',
+          category TEXT DEFAULT 'General',
+          description TEXT NOT NULL DEFAULT '',
+          message TEXT,
+          blocked INTEGER NOT NULL DEFAULT 1,
+          target TEXT DEFAULT 'gateway',
           metadata TEXT DEFAULT '{}',
           is_synthetic INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
 
@@ -396,6 +401,28 @@ export const MIGRATIONS = [
           event_hash TEXT NOT NULL
         );
       `);
+    }
+  },
+  {
+    version: 2,
+    name: '002_security_events_columns',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(security_events)').all().map((c) => c.name);
+      if (!cols.includes('timestamp')) {
+        db.exec("ALTER TABLE security_events ADD COLUMN timestamp TEXT DEFAULT (datetime('now'))");
+      }
+      if (!cols.includes('category')) {
+        db.exec("ALTER TABLE security_events ADD COLUMN category TEXT DEFAULT 'General'");
+      }
+      if (!cols.includes('description')) {
+        db.exec("ALTER TABLE security_events ADD COLUMN description TEXT DEFAULT ''");
+      }
+      if (!cols.includes('blocked')) {
+        db.exec("ALTER TABLE security_events ADD COLUMN blocked INTEGER DEFAULT 1");
+      }
+      if (!cols.includes('target')) {
+        db.exec("ALTER TABLE security_events ADD COLUMN target TEXT DEFAULT 'gateway'");
+      }
     }
   }
 ];

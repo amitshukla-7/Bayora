@@ -184,3 +184,4 @@ Respond with a JSON object strictly adhering to this schema:
     advisoryBadge: 'Advisory – not a decision'
   };
 }
+
