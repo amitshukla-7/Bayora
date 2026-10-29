@@ -3,10 +3,6 @@ import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
 import {
   getDb,
-  getAllModels,
-  getModelById,
-  createModel,
-  deleteModel,
   getAllDatasets,
   getDatasetById,
   createDataset,
@@ -19,6 +15,17 @@ import {
   getDashboardSummary,
   resetToSeed
 } from './db.mjs';
+import {
+  getAllModelsWithMetrics,
+  getModelWithMetrics,
+  createModelRecord,
+  updateModelRecord,
+  deleteModelRecord,
+  verifyModel,
+  pullOllamaModel,
+  handleGgufUpload,
+  importHuggingFaceModel
+} from './models/service.mjs';
 
 import { executeEvaluationRun } from './evaluationEngine.mjs';
 import { proxyRouter } from './proxy.mjs';
@@ -185,16 +192,16 @@ app.get('/api/dashboard/summary', (c) => {
 });
 
 /**
- * Models Management
+ * Models Management (CRUD, Verification Pipeline, Live Computed Metrics)
  */
 app.get('/api/models', (c) => {
-  const models = getAllModels();
+  const models = getAllModelsWithMetrics();
   return c.json({ models, total: models.length });
 });
 
 app.get('/api/models/:id', (c) => {
   const id = c.req.param('id');
-  const model = getModelById(id);
+  const model = getModelWithMetrics(id);
   if (!model) return c.json({ error: 'Model not found' }, 404);
   return c.json(model);
 });
@@ -202,20 +209,86 @@ app.get('/api/models/:id', (c) => {
 app.post('/api/models', async (c) => {
   try {
     const body = await c.req.json();
-    if (!body.name || !body.identifier) {
-      return c.json({ error: 'Model name and identifier are required' }, 400);
-    }
-    const created = createModel(body);
+    const created = await createModelRecord(body, true);
     return c.json(created, 201);
   } catch (err) {
-    return c.json({ error: err.message }, 500);
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.patch('/api/models/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    const updated = await updateModelRecord(id, body);
+    return c.json(updated);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
   }
 });
 
 app.delete('/api/models/:id', (c) => {
-  const id = c.req.param('id');
-  const res = deleteModel(id);
-  return c.json(res);
+  try {
+    const id = c.req.param('id');
+    const res = deleteModelRecord(id);
+    return c.json(res);
+  } catch (err) {
+    return c.json({ error: err.message }, 404);
+  }
+});
+
+app.post('/api/models/:id/verify', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const verified = await verifyModel(id);
+    return c.json(verified);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/models/pull-ollama', async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!body.name) {
+      return c.json({ error: 'Ollama model tag/name is required' }, 400);
+    }
+    const result = await pullOllamaModel(body.name);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/models/upload', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body['file'];
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ error: 'No GGUF file uploaded. Expected multipart form field "file".' }, 400);
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const result = await handleGgufUpload(buffer, file.name);
+    return c.json(result, 201);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/models/import-hf', async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!body.repoId) {
+      return c.json({ error: 'Hugging Face repoId is required' }, 400);
+    }
+    const result = await importHuggingFaceModel(body.repoId);
+    return c.json(result, 201);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
 });
 
 /**

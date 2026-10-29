@@ -213,6 +213,24 @@ export interface SignedCheckpoint {
 // Bayora Platform Types
 // =========================================================================
 
+export interface VerificationStep {
+  step: number;
+  name: string;
+  status: 'PASS' | 'FAIL' | 'SKIPPED' | string;
+  latencyMs?: number;
+  nonce?: string;
+  error?: string;
+}
+
+export interface VerificationReport {
+  verifiedAt?: string;
+  timestamp?: string;
+  diagnostic?: string;
+  nonceEchoVerified?: boolean;
+  pingMs?: number;
+  steps?: VerificationStep[];
+}
+
 export interface Model {
   id: string;
   name: string;
@@ -221,13 +239,16 @@ export interface Model {
   version: string;
   description: string;
   model_type: string;
-  execution_mode: 'Simulation' | 'Mock API' | 'Live';
+  execution_mode: 'Simulation' | 'Mock API' | 'Live' | 'Ollama' | 'OpenAI-Compatible';
   endpoint?: string;
-  status: 'Active' | 'Testing' | 'Archived';
+  status: 'Active' | 'Testing' | 'FAILED_VERIFICATION' | 'PULLING' | 'Archived';
   registered_at: string;
-  risk_score: number;
+  risk_score: number | null;
   total_evaluations: number;
-  pass_rate: number;
+  pass_rate: number | null;
+  verification_details?: VerificationReport | string;
+  file_path?: string;
+  sha256?: string;
 }
 
 export interface DatasetCase {

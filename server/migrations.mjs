@@ -514,6 +514,21 @@ export const MIGRATIONS = [
         );
       `);
     }
+  },
+  {
+    version: 6,
+    name: '006_model_verification_details',
+    up(db) {
+      try {
+        db.exec(`ALTER TABLE models ADD COLUMN verification_details TEXT DEFAULT '{}';`);
+      } catch {}
+      try {
+        db.exec(`ALTER TABLE models ADD COLUMN file_path TEXT;`);
+      } catch {}
+      try {
+        db.exec(`ALTER TABLE models ADD COLUMN sha256 TEXT;`);
+      } catch {}
+    }
   }
 ];
 

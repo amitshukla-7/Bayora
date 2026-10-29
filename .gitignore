@@ -32,6 +32,8 @@ workspace/output/*
 !workspace/output/.gitkeep
 workspace/outbox/*
 !workspace/outbox/.gitkeep
+workspace/models/*
+!workspace/models/.gitkeep
 
 # Model Raw Completions (Do not commit raw completions)
 workspace/completions/*

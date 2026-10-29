@@ -64,6 +64,39 @@ export async function deleteModel(id: string): Promise<{ success: boolean; id: s
   return handleResponse<{ success: boolean; id: string }>(res);
 }
 
+export async function verifyModelApi(id: string): Promise<Model> {
+  const res = await fetch(`${API_BASE}/models/${id}/verify`, { method: 'POST' });
+  return handleResponse<Model>(res);
+}
+
+export async function pullOllamaModelApi(name: string): Promise<Model> {
+  const res = await fetch(`${API_BASE}/models/pull-ollama`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  return handleResponse<Model>(res);
+}
+
+export async function uploadGgufModelApi(file: File): Promise<Model> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/models/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  return handleResponse<Model>(res);
+}
+
+export async function importHuggingFaceModelApi(repoId: string): Promise<Model> {
+  const res = await fetch(`${API_BASE}/models/import-hf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repoId })
+  });
+  return handleResponse<Model>(res);
+}
+
 /**
  * Datasets
  */
