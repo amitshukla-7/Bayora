@@ -4,6 +4,13 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { getDb } from '../db.mjs';
 import { createModelAdapter } from '../adapters/factory.mjs';
+import {
+  validateAndSanitizeUrl,
+  validatedFetch,
+  validateHuggingFaceRepoId,
+  validateHuggingFaceFilePath,
+  validateOllamaModelIdentifier
+} from '../security/urlValidator.mjs';
 
 export const GGUF_MAGIC = Buffer.from([0x47, 0x47, 0x55, 0x46]); // "GGUF"
 
@@ -121,6 +128,18 @@ export async function createModelRecord(data, verifyNow = false) {
   const id = `mod_${crypto.randomBytes(4).toString('hex')}`;
   const now = new Date().toISOString();
 
+  // Validate endpoint / base_url against SSRF and scheme restrictions
+  let sanitizedEndpoint = validated.endpoint || null;
+  if (sanitizedEndpoint) {
+    const check = await validateAndSanitizeUrl(sanitizedEndpoint, { allowLocalhost: true, throwOnError: true });
+    sanitizedEndpoint = check.url;
+  }
+  let sanitizedBaseUrl = validated.base_url || null;
+  if (sanitizedBaseUrl) {
+    const check = await validateAndSanitizeUrl(sanitizedBaseUrl, { allowLocalhost: true, throwOnError: true });
+    sanitizedBaseUrl = check.url;
+  }
+
   db.prepare(`
     INSERT INTO models (
       id, name, provider, identifier, model_identifier, version,
@@ -137,8 +156,8 @@ export async function createModelRecord(data, verifyNow = false) {
     validated.description,
     validated.model_type,
     validated.execution_mode,
-    validated.endpoint || null,
-    validated.base_url || null,
+    sanitizedEndpoint,
+    sanitizedBaseUrl,
     validated.api_key_env || null,
     now
   );
@@ -159,6 +178,16 @@ export async function updateModelRecord(id, updates) {
   const existing = getModelWithMetrics(id);
   if (!existing) {
     throw new Error(`Model with ID ${id} not found`);
+  }
+
+  // Validate endpoint / base_url if being updated
+  if (validated.endpoint) {
+    const check = await validateAndSanitizeUrl(validated.endpoint, { allowLocalhost: true, throwOnError: true });
+    validated.endpoint = check.url;
+  }
+  if (validated.base_url) {
+    const check = await validateAndSanitizeUrl(validated.base_url, { allowLocalhost: true, throwOnError: true });
+    validated.base_url = check.url;
   }
 
   const fields = [];
@@ -225,15 +254,17 @@ export async function verifyModel(id) {
       isConnected = true;
     } else if (model.provider === 'Ollama' || model.execution_mode === 'Ollama') {
       endpointUrl = endpointUrl || 'http://localhost:11434';
+      await validateAndSanitizeUrl(endpointUrl, { allowLocalhost: true, throwOnError: true });
       try {
-        const pingRes = await fetch(`${endpointUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+        const pingRes = await validatedFetch(`${endpointUrl}/api/tags`, { allowLocalhost: true, timeoutMs: 3000 });
         isConnected = pingRes.ok;
       } catch (err) {
         throw new Error(`Connectivity Check Failed: Ollama daemon unreachable at ${endpointUrl} (${err.message})`);
       }
     } else if (endpointUrl) {
+      await validateAndSanitizeUrl(endpointUrl, { allowLocalhost: true, throwOnError: true });
       try {
-        const pingRes = await fetch(endpointUrl, { signal: AbortSignal.timeout(3000) });
+        const pingRes = await validatedFetch(endpointUrl, { allowLocalhost: true, timeoutMs: 3000 });
         isConnected = pingRes.status < 500;
       } catch (err) {
         throw new Error(`Connectivity Check Failed: Endpoint ${endpointUrl} unreachable (${err.message})`);
@@ -313,17 +344,20 @@ export async function verifyModel(id) {
  * Streamed Ollama Model Pull
  */
 export async function pullOllamaModel(modelName, onChunk) {
-  if (!modelName || !modelName.trim()) {
-    throw new Error('Model name is required for Ollama pull');
+  const check = validateOllamaModelIdentifier(modelName);
+  if (!check.valid) {
+    throw new Error(`Invalid Ollama model identifier: ${check.error}`);
   }
+  const cleanModelName = check.identifier;
 
   const endpoint = 'http://localhost:11434/api/pull';
   let res;
   try {
-    res = await fetch(endpoint, {
+    res = await validatedFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: modelName.trim(), stream: true })
+      body: JSON.stringify({ name: cleanModelName, stream: true }),
+      allowLocalhost: true
     });
   } catch (err) {
     throw new Error(`Ollama daemon unreachable at ${endpoint}: ${err.message}. Please verify 'ollama serve' is running.`);
@@ -428,16 +462,17 @@ export async function handleGgufUpload(fileBuffer, originalFilename = 'model.ggu
  * Hugging Face Repo Import (Rejects Pure Pickle Repos)
  */
 export async function importHuggingFaceModel(repoId) {
-  const trimmed = repoId.trim();
-  if (!trimmed.includes('/')) {
-    throw new Error('Invalid Hugging Face repo ID. Expected format: "org/model-name" (e.g. meta-llama/Llama-3.2-3B-Instruct).');
+  const repoCheck = validateHuggingFaceRepoId(repoId);
+  if (!repoCheck.valid) {
+    throw new Error(repoCheck.error);
   }
+  const cleanRepoId = repoCheck.repoId;
 
   // Fetch repository metadata from HF API
   let hfData;
   try {
-    const res = await fetch(`https://huggingface.co/api/models/${encodeURIComponent(trimmed)}`, {
-      signal: AbortSignal.timeout(5000)
+    const res = await validatedFetch(`https://huggingface.co/api/models/${encodeURIComponent(cleanRepoId)}`, {
+      timeoutMs: 5000
     });
     if (!res.ok) {
       throw new Error(`Repository not found on Hugging Face (HTTP ${res.status})`);
