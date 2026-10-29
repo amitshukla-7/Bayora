@@ -14,19 +14,23 @@
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
     "verify": "node --experimental-strip-types scripts/verify.mjs",
     "seed:dev": "node --experimental-strip-types scripts/seed_dev.mjs",
+    "dataset:fetch": "node --experimental-strip-types scripts/fetch_datasets.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "concurrently": "^10.0.6",
+    "dockerode": "^5.0.1",
     "hono": "^4.13.14",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
+    "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/dockerode": "^4.0.2",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

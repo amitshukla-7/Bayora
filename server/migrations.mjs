@@ -15,11 +15,15 @@ export const MIGRATIONS = [
           name TEXT NOT NULL,
           provider TEXT NOT NULL,
           identifier TEXT NOT NULL,
+          model_identifier TEXT,
           version TEXT NOT NULL DEFAULT '1.0.0',
           description TEXT NOT NULL DEFAULT '',
           model_type TEXT NOT NULL DEFAULT 'Instruct LLM',
           execution_mode TEXT NOT NULL DEFAULT 'Live', -- Live, Ollama, OpenAI-Compatible, Simulation
           endpoint TEXT,
+          base_url TEXT,
+          api_key_env TEXT,
+          parameters TEXT,
           status TEXT NOT NULL DEFAULT 'Active',
           registered_at TEXT NOT NULL,
           is_synthetic INTEGER NOT NULL DEFAULT 0
@@ -60,7 +64,7 @@ export const MIGRATIONS = [
         );
       `);
 
-      // 4. Evaluation Runs
+      // 4. Eval Runs (Evaluations)
       db.exec(`
         CREATE TABLE IF NOT EXISTS eval_runs (
           id TEXT PRIMARY KEY,
@@ -68,7 +72,7 @@ export const MIGRATIONS = [
           dataset_id TEXT REFERENCES datasets(id),
           model_id TEXT NOT NULL REFERENCES models(id),
           model_identifier TEXT NOT NULL,
-          status TEXT NOT NULL, -- QUEUED, RUNNING, COMPLETED, FAILED, ABORTED
+          status TEXT NOT NULL DEFAULT 'QUEUED', -- QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
           total_cases INTEGER NOT NULL DEFAULT 0,
           passed_count INTEGER NOT NULL DEFAULT 0,
           warning_count INTEGER NOT NULL DEFAULT 0,
@@ -81,16 +85,37 @@ export const MIGRATIONS = [
           config_fingerprint TEXT,
           git_commit TEXT,
           is_synthetic INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL,
-          completed_at TEXT
+          created_at TEXT NOT NULL
         );
       `);
 
-      // 5. Evaluation Cases (Granular Per-Prompt Executions)
+      // 5. Evaluations (UI Representation Table)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS evaluations (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          preset_scenario TEXT NOT NULL DEFAULT 'Standard',
+          status TEXT NOT NULL DEFAULT 'COMPLETED', -- RUNNING, COMPLETED, FAILED, CANCELLED
+          models TEXT NOT NULL, -- JSON array of model IDs
+          categories TEXT NOT NULL, -- JSON array of categories
+          total_cases INTEGER NOT NULL DEFAULT 0,
+          passed_count INTEGER NOT NULL DEFAULT 0,
+          warning_count INTEGER NOT NULL DEFAULT 0,
+          failed_count INTEGER NOT NULL DEFAULT 0,
+          risk_score REAL NOT NULL DEFAULT 0,
+          execution_duration_ms INTEGER NOT NULL DEFAULT 0,
+          estimated_duration TEXT,
+          execution_settings TEXT DEFAULT '{}',
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // 6. Eval Cases (Granular Per-Case Executions)
       db.exec(`
         CREATE TABLE IF NOT EXISTS eval_cases (
           id TEXT PRIMARY KEY,
-          run_id TEXT NOT NULL REFERENCES eval_runs(id) ON DELETE CASCADE,
+          run_id TEXT NOT NULL,
           case_id TEXT,
           model_id TEXT NOT NULL,
           category TEXT NOT NULL,
@@ -106,24 +131,25 @@ export const MIGRATIONS = [
           tokens_prompt INTEGER NOT NULL DEFAULT 0,
           tokens_completion INTEGER NOT NULL DEFAULT 0,
           tokens_total INTEGER NOT NULL DEFAULT 0,
-          verdict TEXT NOT NULL, -- PASS, WARNING, FAIL
-          triggered_policies TEXT DEFAULT '[]', -- JSON array of policy IDs
+          verdict TEXT NOT NULL, -- Passed, Warning, Failed
+          triggered_policies TEXT DEFAULT '[]',
           explanation TEXT,
           evidence TEXT,
           mitigation TEXT,
-          seed INTEGER NOT NULL DEFAULT 42,
-          temperature REAL NOT NULL DEFAULT 0.0,
+          seed INTEGER DEFAULT 42,
+          temperature REAL DEFAULT 0.0,
           is_synthetic INTEGER NOT NULL DEFAULT 0,
           executed_at TEXT NOT NULL
         );
       `);
 
-      // 6. Findings
+      // 7. Findings
       db.exec(`
         CREATE TABLE IF NOT EXISTS findings (
           id TEXT PRIMARY KEY,
-          eval_case_id TEXT REFERENCES eval_cases(id) ON DELETE CASCADE,
-          run_id TEXT NOT NULL REFERENCES eval_runs(id) ON DELETE CASCADE,
+          eval_case_id TEXT,
+          run_id TEXT,
+          evaluation_id TEXT,
           model_id TEXT NOT NULL,
           model_name TEXT NOT NULL,
           category TEXT NOT NULL,
@@ -134,103 +160,152 @@ export const MIGRATIONS = [
           expected_behavior TEXT NOT NULL,
           explanation TEXT NOT NULL,
           policy_violated TEXT,
-          risk_score INTEGER NOT NULL DEFAULT 50,
-          evidence TEXT NOT NULL,
-          mitigation TEXT NOT NULL,
+          risk_score REAL NOT NULL,
+          evidence TEXT,
+          mitigation TEXT,
           is_synthetic INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL
         );
       `);
 
-      // 7. Security Policies
+      // 8. Security Policies
       db.exec(`
         CREATE TABLE IF NOT EXISTS policies (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'POLICY',
           category TEXT NOT NULL,
           description TEXT NOT NULL,
-          severity TEXT NOT NULL DEFAULT 'High',
+          severity TEXT NOT NULL DEFAULT 'Medium',
           is_enabled INTEGER NOT NULL DEFAULT 1,
-          effect TEXT NOT NULL DEFAULT 'DENY', -- ALLOW, DENY
-          tool TEXT NOT NULL DEFAULT 'all',
-          rules TEXT NOT NULL DEFAULT '{}', -- JSON rule configuration
+          effect TEXT NOT NULL DEFAULT 'DENY',
+          tool TEXT DEFAULT '*',
+          rules TEXT NOT NULL DEFAULT '{}',
           version TEXT NOT NULL DEFAULT '1.0.0',
+          enforcement_mode TEXT NOT NULL DEFAULT 'Strict', -- Strict, Permissive, Advisory
+          configuration TEXT NOT NULL DEFAULT '{}',
+          fingerprint TEXT NOT NULL DEFAULT '',
           is_synthetic INTEGER NOT NULL DEFAULT 0,
           updated_at TEXT NOT NULL
         );
       `);
 
-      // 8. Policy Decisions Log
+      // 9. Policy Decisions
       db.exec(`
         CREATE TABLE IF NOT EXISTS policy_decisions (
           id TEXT PRIMARY KEY,
-          run_id TEXT,
-          request_id TEXT,
+          evaluation_id TEXT,
           policy_id TEXT NOT NULL REFERENCES policies(id),
-          tool_name TEXT,
-          target_resource TEXT,
-          decision TEXT NOT NULL, -- ALLOWED, DENIED, WARNING
-          reason TEXT NOT NULL,
-          risk_level TEXT NOT NULL DEFAULT 'LOW',
-          payload_hash TEXT NOT NULL,
-          evaluated_at TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
+          model_id TEXT NOT NULL,
+          decision TEXT NOT NULL, -- ALLOW, DENY, REDACT, WARNING
+          verdict TEXT NOT NULL, -- Passed, Warning, Failed
+          input_hash TEXT NOT NULL,
+          output_hash TEXT NOT NULL,
+          matched_rules TEXT,
+          latency_ms REAL NOT NULL,
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
         );
       `);
 
-      // 9. Probe Runs & Results
+      // 10. Probe Runs
       db.exec(`
         CREATE TABLE IF NOT EXISTS probe_runs (
           id TEXT PRIMARY KEY,
           timestamp TEXT NOT NULL,
-          status TEXT NOT NULL, -- COMPLETED, FAILED, UNVERIFIED
-          environment_type TEXT NOT NULL DEFAULT 'docker', -- docker, mock, unverified
-          config_fingerprint TEXT NOT NULL,
-          total_duration_ms REAL NOT NULL DEFAULT 0,
+          overall_status TEXT NOT NULL, -- VERIFIED, UNVERIFIED, BREACHED
+          score REAL NOT NULL,
+          active_probes INTEGER NOT NULL,
+          passed_probes INTEGER NOT NULL,
           is_synthetic INTEGER NOT NULL DEFAULT 0
         );
       `);
 
+      // 11. Probe Results
       db.exec(`
         CREATE TABLE IF NOT EXISTS probe_results (
           id TEXT PRIMARY KEY,
-          probe_run_id TEXT NOT NULL REFERENCES probe_runs(id) ON DELETE CASCADE,
-          probe_id TEXT NOT NULL, -- T01, T02, T03, T04, T05
-          guarantee_id TEXT NOT NULL, -- G1, G2, G3, G4, G5
-          verdict TEXT NOT NULL, -- PASS, FAIL, NOT_RUN
-          evidence_json TEXT NOT NULL, -- JSON (command, exit_code, stdout_excerpt, http_status, inspect_excerpt)
-          duration_ms REAL NOT NULL DEFAULT 0,
-          executed_at TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
+          run_id TEXT NOT NULL REFERENCES probe_runs(id) ON DELETE CASCADE,
+          probe_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL, -- PASS, FAIL, UNVERIFIED
+          latency_ms REAL NOT NULL,
+          evidence TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL
         );
       `);
 
-      // 10. Configuration Snapshots
+      // 12. Config Snapshots
       db.exec(`
         CREATE TABLE IF NOT EXISTS config_snapshots (
           id TEXT PRIMARY KEY,
-          fingerprint TEXT NOT NULL UNIQUE,
-          canonical_manifest TEXT NOT NULL,
-          g1_digest TEXT NOT NULL,
-          g2_digest TEXT NOT NULL,
-          g3_digest TEXT NOT NULL,
-          g4_digest TEXT NOT NULL,
-          g5_digest TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          guarantee_digests TEXT NOT NULL, -- JSON
+          is_valid INTEGER NOT NULL DEFAULT 1,
           captured_at TEXT NOT NULL
         );
       `);
 
-      // 11. Cryptographic Audit Ledger (Strictly Append-Only via Triggers)
+      // 13. Attestations
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS attestations (
+          id TEXT PRIMARY KEY,
+          config_fingerprint TEXT NOT NULL,
+          state TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          signature TEXT NOT NULL,
+          public_key TEXT NOT NULL,
+          valid_until TEXT NOT NULL,
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // 14. Gateway Requests
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gateway_requests (
+          id TEXT PRIMARY KEY,
+          model_id TEXT NOT NULL,
+          prompt_hash TEXT NOT NULL,
+          response_hash TEXT NOT NULL,
+          latency_ms REAL NOT NULL,
+          tokens_prompt INTEGER NOT NULL DEFAULT 0,
+          tokens_completion INTEGER NOT NULL DEFAULT 0,
+          tokens_total INTEGER NOT NULL DEFAULT 0,
+          policy_verdict TEXT NOT NULL,
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // 15. Advisor Outputs
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS advisor_outputs (
+          id TEXT PRIMARY KEY,
+          context_id TEXT NOT NULL,
+          source TEXT NOT NULL, -- llm, template
+          incident_summary TEXT NOT NULL,
+          root_cause TEXT NOT NULL,
+          mitigations TEXT NOT NULL, -- JSON array
+          schema_valid INTEGER NOT NULL DEFAULT 1,
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // 16. Audit Events (Append-Only Cryptographic Hash Chain)
       db.exec(`
         CREATE TABLE IF NOT EXISTS audit_events (
           sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-          event_id TEXT NOT NULL UNIQUE,
+          event_id TEXT,
           run_id TEXT,
           timestamp TEXT NOT NULL,
-          event_type TEXT NOT NULL, -- run.started, test.completed, policy.decision, etc.
+          event_type TEXT NOT NULL,
           tool_name TEXT,
           resource TEXT,
-          decision TEXT NOT NULL DEFAULT 'NONE',
+          decision TEXT NOT NULL, -- ALLOW, DENY, LOG, NONE
+          payload TEXT,
           payload_canonical TEXT NOT NULL,
           previous_event_hash TEXT NOT NULL,
           event_hash TEXT NOT NULL,
@@ -238,88 +313,37 @@ export const MIGRATIONS = [
         );
       `);
 
-      // SQLite Triggers preventing modification or deletion of audit records
+      // Strict SQLite Triggers: Enforce Append-Only Guarantee on audit_events
       db.exec(`
-        CREATE TRIGGER IF NOT EXISTS audit_events_no_update
+        CREATE TRIGGER IF NOT EXISTS trg_audit_events_no_update
         BEFORE UPDATE ON audit_events
         BEGIN
-          SELECT RAISE(FAIL, 'audit_events is strictly append-only: UPDATE prohibited');
+          SELECT RAISE(FAIL, 'audit_events is strictly append-only: UPDATE is prohibited');
         END;
       `);
 
       db.exec(`
-        CREATE TRIGGER IF NOT EXISTS audit_events_no_delete
+        CREATE TRIGGER IF NOT EXISTS trg_audit_events_no_delete
         BEFORE DELETE ON audit_events
         BEGIN
-          SELECT RAISE(FAIL, 'audit_events is strictly append-only: DELETE prohibited');
+          SELECT RAISE(FAIL, 'audit_events is strictly append-only: DELETE is prohibited');
         END;
       `);
 
-      // 12. Cryptographic Attestations
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS attestations (
-          id TEXT PRIMARY KEY,
-          issued_at TEXT NOT NULL,
-          expires_at TEXT NOT NULL,
-          policy_fingerprint TEXT NOT NULL,
-          assurance_state TEXT NOT NULL, -- VERIFIED, STALE, BREACHED, UNVERIFIED, RECOVERING
-          key_id TEXT NOT NULL,
-          signature_hex TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
-        );
-      `);
-
-      // 13. Gateway Requests
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS gateway_requests (
-          id TEXT PRIMARY KEY,
-          client_ip TEXT,
-          model_target TEXT NOT NULL,
-          attestation_id TEXT,
-          input_tokens INTEGER DEFAULT 0,
-          output_tokens INTEGER DEFAULT 0,
-          latency_ms REAL NOT NULL DEFAULT 0,
-          http_status INTEGER NOT NULL DEFAULT 200,
-          decision TEXT NOT NULL DEFAULT 'ALLOWED',
-          created_at TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
-        );
-      `);
-
-      // 14. Advisor Outputs (AI Explains)
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS advisor_outputs (
-          id TEXT PRIMARY KEY,
-          eval_run_id TEXT REFERENCES eval_runs(id),
-          finding_id TEXT REFERENCES findings(id),
-          source TEXT NOT NULL, -- 'llm' | 'template'
-          model_used TEXT,
-          prompt_hash TEXT NOT NULL,
-          summary TEXT NOT NULL,
-          root_cause TEXT NOT NULL,
-          mitigations TEXT NOT NULL, -- JSON array
-          referenced_finding_ids TEXT NOT NULL, -- JSON array
-          is_valid INTEGER NOT NULL DEFAULT 1,
-          created_at TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
-        );
-      `);
-
-      // 15. Security Events / Telemetry
+      // 17. Security Events (Audit stream)
       db.exec(`
         CREATE TABLE IF NOT EXISTS security_events (
           id TEXT PRIMARY KEY,
-          timestamp TEXT NOT NULL,
+          event_type TEXT NOT NULL,
           severity TEXT NOT NULL,
-          category TEXT NOT NULL,
-          description TEXT NOT NULL,
-          blocked INTEGER NOT NULL DEFAULT 1,
-          target TEXT NOT NULL,
-          is_synthetic INTEGER NOT NULL DEFAULT 0
+          message TEXT NOT NULL,
+          metadata TEXT DEFAULT '{}',
+          is_synthetic INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
         );
       `);
 
-      // Legacy compatibility views / tables for earlier prototype test runners
+      // 18. Legacy SentinelFlow Runs
       db.exec(`
         CREATE TABLE IF NOT EXISTS runs (
           id TEXT PRIMARY KEY,
@@ -330,28 +354,34 @@ export const MIGRATIONS = [
           allowed_count INTEGER NOT NULL DEFAULT 0,
           denied_count INTEGER NOT NULL DEFAULT 0,
           incident_count INTEGER NOT NULL DEFAULT 0,
-          summary TEXT,
+          summary TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL
         );
       `);
 
+      // 19. Legacy SentinelFlow Incidents
       db.exec(`
         CREATE TABLE IF NOT EXISTS incidents (
           id TEXT PRIMARY KEY,
           run_id TEXT NOT NULL,
           timestamp TEXT NOT NULL,
           severity TEXT NOT NULL,
-          threat_category TEXT NOT NULL,
+          threat_category TEXT,
           tool_name TEXT NOT NULL,
-          target_resource TEXT NOT NULL,
-          policy_id TEXT NOT NULL,
+          target_resource TEXT,
+          policy_id TEXT,
+          policy_name TEXT,
           description TEXT NOT NULL,
-          evidence_snippet TEXT NOT NULL,
+          evidence_snippet TEXT,
+          evidence TEXT,
+          remediation TEXT,
           ai_analysis TEXT,
-          status TEXT NOT NULL
+          status TEXT NOT NULL DEFAULT 'OPEN',
+          created_at TEXT
         );
       `);
 
+      // 20. Legacy SentinelFlow Events
       db.exec(`
         CREATE TABLE IF NOT EXISTS events (
           sequence INTEGER PRIMARY KEY AUTOINCREMENT,
