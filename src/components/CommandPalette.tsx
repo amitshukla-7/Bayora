@@ -7,6 +7,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   onNavigate: (page: PageId, extraId?: string) => void;
   models: Model[];
+  
   policies: Policy[];
   findings: Finding[];
   datasets: Dataset[];
