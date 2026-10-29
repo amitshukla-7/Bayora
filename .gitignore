@@ -36,3 +36,4 @@ workspace/outbox/*
 # Model Raw Completions (Do not commit raw completions)
 workspace/completions/*
 data/completions/*
+workspace/test_bundle.json

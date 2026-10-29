@@ -1,6 +1,7 @@
 import { canonicalJson, sha256Hex, GENESIS_HASH } from '../src/core/canonical.ts';
-import { generateSigningKeyPair } from '../src/core/signing.ts';
-import { getLatestEvent, insertEvent, getAllEvents } from './db.mjs';
+import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from '../src/core/signing.ts';
+import { getLatestEvent, insertEvent, getAllEvents, getDb, getAuditEvidence } from './db.mjs';
+import { computeCanonicalPolicyFingerprint } from './attestation.mjs';
 
 let defaultKeyPair = null;
 
@@ -26,7 +27,6 @@ export async function appendLedgerEvent({
   const previousEventHash = latest ? latest.event_hash : GENESIS_HASH;
   const timestamp = new Date().toISOString();
 
-  // Temporary object to compute hash (sequence will be latest.sequence + 1 or 1)
   const nextSeq = latest ? latest.sequence + 1 : 1;
 
   const eventForHashing = {
@@ -48,7 +48,6 @@ export async function appendLedgerEvent({
     run_id: runId,
     timestamp,
     event_type: eventType,
-    
     tool_name: toolName,
     resource: resource,
     decision: decision,
@@ -64,41 +63,56 @@ export async function appendLedgerEvent({
  * Exports a cryptographically signed evidence bundle.
  */
 export async function exportEvidenceBundle() {
-  const events = getAllEvents(1000).reverse(); // chronological order
+  const legacyEvents = getAllEvents(5000).reverse();
+  const rawAudit = getAuditEvidence(5000);
+  let events = [];
+
+  if (legacyEvents.length > 0) {
+    events = legacyEvents.map(e => ({
+      sequence: e.sequence,
+      run_id: e.run_id,
+      timestamp: e.timestamp,
+      event_type: e.event_type,
+      tool_name: e.tool_name,
+      resource: e.resource,
+      decision: e.decision,
+      payload: typeof e.payload === 'string' ? JSON.parse(e.payload) : e.payload,
+      previous_event_hash: e.previous_event_hash,
+      event_hash: e.event_hash
+    }));
+  } else {
+    events = rawAudit.map(e => ({
+      sequence: e.sequence,
+      event_id: e.event_id,
+      run_id: e.run_id,
+      timestamp: e.timestamp,
+      event_type: e.event_type,
+      tool_name: e.tool_name,
+      resource: e.resource,
+      decision: e.decision,
+      payload_canonical: e.payload_canonical,
+      payload: typeof e.payload_canonical === 'string' ? JSON.parse(e.payload_canonical || '{}') : e.payload_canonical,
+      previous_event_hash: e.previous_event_hash,
+      event_hash: e.event_hash
+    }));
+  }
+
   const keyPair = await getSigningKey();
+  const policyFingerprint = await computeCanonicalPolicyFingerprint();
 
   const manifest = {
-    bundle_version: '1.0.0',
+    bundle_version: '2.0.0',
     generated_at: new Date().toISOString(),
     event_count: events.length,
     first_event_hash: events.length > 0 ? events[0].event_hash : GENESIS_HASH,
     latest_event_hash: events.length > 0 ? events[events.length - 1].event_hash : GENESIS_HASH,
+    policy_fingerprint: policyFingerprint,
     key_id: keyPair.keyId,
     key_label: keyPair.keyLabel,
   };
 
-  const manifestHash = await sha256Hex(canonicalJson(manifest));
-
-  // Sign manifestHash using ECDSA P-256
-  const cryptoSubtle = globalThis.crypto.subtle;
-  const privateKey = await cryptoSubtle.importKey(
-    'jwk',
-    keyPair.privateKeyJwk,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign']
-  );
-
-  const encoder = new TextEncoder();
-  const signatureBuffer = await cryptoSubtle.sign(
-    { name: 'ECDSA', hash: { name: 'SHA-256' } },
-    privateKey,
-    encoder.encode(manifestHash)
-  );
-
-  const signatureHex = Array.from(new Uint8Array(signatureBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const manifestCanonical = canonicalJson(manifest);
+  const signatureHex = await signDataP256(manifestCanonical, keyPair.privateKeyJwk);
 
   return {
     manifest,
@@ -109,14 +123,40 @@ export async function exportEvidenceBundle() {
 }
 
 /**
- * Verifies any evidence bundle (or the current ledger).
- * Checks:
- * 1. Sequence order & unbroken previous_event_hash chain
- * 2. Recomputed SHA-256 match for every individual block
- * 3. Cryptographic signature over manifest
+ * Verifies an evidence bundle offline:
+ * 1. Validates digital signature on manifest using public JWK
+ * 2. Checks sequential indexing (#1, #2, #3...)
+ * 3. Verifies previous_event_hash continuity link from genesis
+ * 4. Recomputes SHA-256 for each block and asserts exact match
  */
 export async function verifyEvidenceBundle(bundle) {
+  if (!bundle || !bundle.manifest) {
+    return {
+      status: 'TAMPERED',
+      valid: false,
+      details: 'Malformed evidence bundle: missing manifest.'
+    };
+  }
+
   const events = bundle.events || [];
+
+  // Verify ECDSA P-256 digital signature if signature & public key present
+  if (bundle.manifest_signature && bundle.public_key_jwk) {
+    const manifestCanonical = canonicalJson(bundle.manifest);
+    const isSigValid = await verifySignatureP256(
+      manifestCanonical,
+      bundle.manifest_signature,
+      bundle.public_key_jwk
+    );
+    if (!isSigValid) {
+      return {
+        status: 'TAMPERED',
+        valid: false,
+        details: 'Manifest digital signature verification failed: signature does not match public key.'
+      };
+    }
+  }
+
   if (events.length === 0) {
     return {
       status: 'VERIFIED',
@@ -138,7 +178,7 @@ export async function verifyEvidenceBundle(bundle) {
         valid: false,
         failedSequence: e.sequence,
         expectedSequence: i + 1,
-        details: `Sequence mismatch at index ${i}: expected #${i + 1}, found #${e.sequence}. Missing lifecycle block detected.`,
+        details: `Sequence mismatch at index ${i}: expected #${i + 1}, found #${e.sequence}. Missing block detected.`,
       };
     }
 
@@ -148,84 +188,56 @@ export async function verifyEvidenceBundle(bundle) {
         status: 'TAMPERED',
         valid: false,
         failedSequence: e.sequence,
-        details: `Hash chain continuity broken at event #${e.sequence}. Previous hash recorded does not match preceding block's hash.`,
+        recordedPreviousHash: e.previous_event_hash,
         expectedPreviousHash,
-        actualPreviousHash: e.previous_event_hash,
+        details: `Hash continuity broken at sequence #${e.sequence}. Previous hash link does not match predecessor digest.`,
       };
     }
 
-    // Recompute event hash
-    const eventForHashing = {
-      sequence: e.sequence,
-      run_id: e.run_id,
-      timestamp: e.timestamp,
-      event_type: e.event_type,
-      tool_name: e.tool_name,
-      resource: e.resource,
-      decision: e.decision,
-      payload: e.payload,
-      previous_event_hash: e.previous_event_hash,
-    };
+    // Recomputed digest check
+    let recomputed;
+    if (e.payload !== undefined && e.payload_canonical === undefined) {
+      // Legacy Sentinelflow format
+      const eventForHashing = {
+        sequence: e.sequence,
+        run_id: e.run_id,
+        timestamp: e.timestamp,
+        event_type: e.event_type,
+        tool_name: e.tool_name,
+        resource: e.resource,
+        decision: e.decision,
+        payload: e.payload,
+        previous_event_hash: e.previous_event_hash,
+      };
+      recomputed = await sha256Hex(canonicalJson(eventForHashing));
+    } else {
+      // Phase 2/7 format: sha256(previous_event_hash + payload_canonical + timestamp)
+      const payloadStr = typeof e.payload_canonical === 'string'
+        ? e.payload_canonical
+        : canonicalJson(e.payload || {});
+      const raw = (e.previous_event_hash || '') + payloadStr + (e.timestamp || '');
+      recomputed = await sha256Hex(raw);
+    }
 
-    const recomputed = await sha256Hex(canonicalJson(eventForHashing));
     if (recomputed !== e.event_hash) {
       return {
         status: 'TAMPERED',
         valid: false,
         failedSequence: e.sequence,
-        details: `Payload integrity failure at event #${e.sequence} (${e.event_type}). Recomputed digest does not match recorded event hash.`,
         recordedHash: e.event_hash,
         recomputedHash: recomputed,
+        details: `Cryptographic digest mismatch at block #${e.sequence}: Payload integrity failure. Payload has been altered.`,
       };
     }
 
     expectedPreviousHash = e.event_hash;
   }
 
-  // Verify Signature if present
-  let signatureValid = true;
-  if (bundle.manifest_signature && bundle.public_key_jwk) {
-    try {
-      const cryptoSubtle = globalThis.crypto.subtle;
-      const publicKey = await cryptoSubtle.importKey(
-        'jwk',
-        bundle.public_key_jwk,
-        { name: 'ECDSA', namedCurve: 'P-256' },
-        false,
-        ['verify']
-      );
-
-      const manifestHash = await sha256Hex(canonicalJson(bundle.manifest));
-      const sigBytes = new Uint8Array(
-        bundle.manifest_signature.match(/.{1,2}/g).map((byte) => parseInt(byte, 16))
-      );
-
-      signatureValid = await cryptoSubtle.verify(
-        { name: 'ECDSA', hash: { name: 'SHA-256' } },
-        publicKey,
-        sigBytes,
-        new TextEncoder().encode(manifestHash)
-      );
-    } catch {
-      signatureValid = false;
-    }
-  }
-
-  if (!signatureValid) {
-    return {
-      status: 'TAMPERED',
-      valid: false,
-      details: 'Cryptographic signature verification failed: bundle manifest was modified after attestation.',
-    };
-  }
-
   return {
     status: 'VERIFIED',
     valid: true,
     totalEvents: events.length,
-    firstEventHash: events[0].event_hash,
-    latestEventHash: events[events.length - 1].event_hash,
-    signatureVerified: Boolean(bundle.manifest_signature),
-    details: `All ${events.length} cryptographic events verified. Hash chain and digital signature are 100% intact.`,
+    latestEventHash: expectedPreviousHash,
+    details: `All ${events.length} cryptographic audit blocks verified with zero errors.`,
   };
 }
