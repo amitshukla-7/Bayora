@@ -151,9 +151,9 @@ export function getDashboardSummary() {
   const counts = db.prepare(`
     SELECT 
       COUNT(*) AS total_cases,
-      COUNT(*) FILTER (WHERE verdict = 'PASS') AS passed_cases,
-      COUNT(*) FILTER (WHERE verdict = 'WARNING') AS warning_cases,
-      COUNT(*) FILTER (WHERE verdict = 'FAIL') AS failed_cases
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('PASS', 'PASSED')) AS passed_cases,
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('WARN', 'WARNING')) AS warning_cases,
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED')) AS failed_cases
     FROM eval_cases
   `).get() || { total_cases: 0, passed_cases: 0, warning_cases: 0, failed_cases: 0 };
 
@@ -191,7 +191,7 @@ export function getDashboardSummary() {
       strftime('%b %d', days.d) AS display_date,
       COUNT(ec.id) AS test_runs,
       COUNT(ec.id) FILTER (WHERE ec.category = 'Hallucination') AS hal_total,
-      COUNT(ec.id) FILTER (WHERE ec.category = 'Hallucination' AND ec.verdict = 'FAIL') AS hal_fails
+      COUNT(ec.id) FILTER (WHERE ec.category = 'Hallucination' AND UPPER(ec.verdict) IN ('FAIL', 'FAILED')) AS hal_fails
     FROM days
     LEFT JOIN eval_cases ec ON date(ec.executed_at) = days.d
     GROUP BY days.d
@@ -284,7 +284,7 @@ export function getDashboardSummary() {
     const row = db.prepare(`
       SELECT 
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE verdict = 'PASS') AS passed
+        COUNT(*) FILTER (WHERE UPPER(verdict) IN ('PASS', 'PASSED')) AS passed
       FROM eval_cases
       WHERE category IN (${placeholders})
     `).get(...categories);
@@ -333,7 +333,7 @@ export function getDashboardSummary() {
     SELECT 
       category,
       COUNT(*) AS attempts,
-      COUNT(*) FILTER (WHERE verdict = 'FAIL') AS breaches
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED')) AS breaches
     FROM eval_cases
     WHERE is_adversarial = 1
     GROUP BY category
