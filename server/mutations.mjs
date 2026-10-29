@@ -154,6 +154,7 @@ export async function runSelectiveRetest(mutationId) {
   const results = [];
 
   for (const c of cases) {
+    const tStart = performance.now();
     const outcome = evaluateTestCase(c, c.modelResult, configs);
     
     // Machine Oracle: Determine if a real security breach occurred
@@ -194,7 +195,7 @@ export async function runSelectiveRetest(mutationId) {
       verdict: breach ? 'Failed' : outcome.verdict,
       breachDetected: breach,
       oracleReason,
-      latencyMs: Math.round(Math.random() * 5 + 2) // Deterministic sub-10ms latency
+      latencyMs: Math.max(1, Math.round(performance.now() - tStart))
     });
   }
 

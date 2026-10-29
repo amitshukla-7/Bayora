@@ -53,7 +53,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
   const [formIdentifier, setFormIdentifier] = useState('');
   const [formVersion] = useState('1.0.0');
   const [formType] = useState('Instruct LLM');
-  const [formMode, setFormMode] = useState<'Simulation' | 'Mock API' | 'Live'>('Simulation');
+  const [formMode, setFormMode] = useState<'Simulation' | 'Mock API' | 'Live'>('Live');
   const [formEndpoint, setFormEndpoint] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -723,9 +723,8 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                       onChange={(e) => setFormMode(e.target.value as any)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 outline-hidden focus:border-[#9B7DE8]"
                     >
-                      <option value="Simulation">Simulation (Deterministic Adapter)</option>
-                      <option value="Mock API">Mock API</option>
-                      <option value="Live">Live Provider</option>
+                      <option value="Live">Live Provider (Real Execution)</option>
+                      <option value="Simulation">Simulation Double (Unit Testing Only)</option>
                     </select>
                   </div>
                 </div>
