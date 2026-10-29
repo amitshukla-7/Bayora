@@ -14,7 +14,70 @@ The platform enforces a strict separation of concerns:
 
 ---
 
-## 1. Non-Negotiable Engineering Standards
+## 1. ⚡ Live Demo in 5 Minutes (Hackathon Quickstart)
+
+### Step 1: Start Local Ollama Daemon & Pull Real Model (or set an API key)
+```bash
+# Start local Ollama daemon
+ollama serve
+
+# Pull lightweight 91MB model (instant CPU inference, zero API fees)
+ollama pull smollm:135m
+```
+
+### Step 2: Start Bayora (Single Command)
+```bash
+npm run dev
+```
+*(Starts Hono REST API on `http://localhost:3001` and React Vite UI on `http://localhost:5173`)*
+
+### Step 3: Run the 5-Second Model Sanity Suite
+In a second terminal, run the sanity suite to verify end-to-end model connectivity and ground-truth oracles:
+```bash
+npm run demo:check
+```
+**Expected output:**
+```
+[+] Target Model : SmolLM 135M (Local Ollama) (smollm:135m)
+[ASSERTION PASSED]: Case 1 is NO_BREACH (Passed)
+[ASSERTION PASSED]: Case 2 is BREACH (Failed - Canary Token Match)
+Reconciliation: 1 Breach + 1 Passed + 0 Warning + 0 Errored === 2 Total (VALID)
+[SUCCESS] All live sanity tests passed without errors or simulations.
+```
+
+### Step 4: Open the Platform
+Open **`http://localhost:5173`** in your browser.
+
+---
+
+### Step 5: What to Click on Stage (3 Clicks to the Hero Moment)
+
+1. **Click 1 — Executive Dashboard (`/`):**
+   - Point to the **Live Reconciliation Ribbon** at the top.
+   - Explain to judges: *"These are not simulated numbers. This is a live SQL query over SQLite (`workspace/bayora.db`). The invariant $Passed + Warning + Breaches + Errored \equiv Total$ is checked mathematically on every render."*
+2. **Click 2 — Red Team Evaluations (`/evaluations`):**
+   - Show the completed evaluation run on `SmolLM 135M`.
+   - Click the **Critical Finding** to expand the inspection drawer.
+   - Show the exact raw model response where the model leaked the dynamic token `CANARY_<HEX>` on local CPU in real time.
+3. **Click 3 — Policy Engine & Interactive Gate (`/security`):**
+   - Scroll to the Interactive Policy Gate.
+   - Click **Harmful Toxicity (POL-004)** or **Secret Disclosure (POL-001)**.
+   - Hit **Evaluate Output**: the verdict (`DENY`, `Failed`, Critical) is computed in under 2ms with zero LLM in the loop.
+
+---
+
+### Step 6: Exactly What to Say to Judges
+
+> *"Every AI safety platform you see today asks an LLM: 'Evaluate whether this text is an attack.' That is structurally flawed: LLMs hallucinate, suffer from jailbreak bypasses, and vary with temperature.*
+> 
+> *In Bayora, **Math Decides, AI Explains**:*
+> *1. **Math Decides:** Every security verdict, canary token extraction, policy block, and audit ledger entry is computed by deterministic code (pure TypeScript, Shannon entropy, RFC 8785 canonical JSON, and ECDSA P-256 signatures). A mathematical proof never hallucinates.*
+> *2. **AI Explains:** Generative models are restricted solely to post-incident advisory summaries. Their text is validated against strict Zod schemas and labeled 'Advisory – not a decision'.*
+> *3. **Real Only:** Zero Math.random, zero simulated latency, zero fake models. Everything you see runs live against local Ollama or production endpoints."*
+
+---
+
+## 2. Non-Negotiable Engineering Standards
 
 1. **NO SIMULATION in Runtime Code:** Zero `Math.random()`, fake `setTimeout` delays, or hardcoded metrics exist in runtime paths (`server/`, `src/`). Test doubles exist only under `tests/`.
 2. **Live Database Aggregates:** Every metric shown in the UI is computed via SQL queries over SQLite (`workspace/bayora.db`). The reconciliation ribbon is a live mathematical invariant:

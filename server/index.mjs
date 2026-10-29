@@ -707,8 +707,23 @@ if (process.env.NODE_ENV !== 'test') {
       console.log(`\n======================================================`);
       console.log(` BAYORA INTELLIGENCE CENTER — AI MODEL SECURITY PLATFORM`);
       console.log(` Running on http://localhost:${PORT}`);
-      console.log(` Environment: Local Interactive Prototype`);
+      console.log(` Environment: Local Interactive Platform`);
+      console.log(` Invariant: AI Explains, Math Decides`);
       console.log(`======================================================\n`);
+
+      // Preflight guidance for local model inference
+      fetch('http://localhost:11434/api/tags')
+        .then(res => res.json())
+        .then(data => {
+          const models = data.models?.map(m => m.name).join(', ') || 'none';
+          console.log(`[MODEL RUNTIME] Local Ollama daemon active. Available models: [${models}]`);
+        })
+        .catch(() => {
+          console.warn(`[MODEL RUNTIME] Ollama daemon not detected at http://localhost:11434.`);
+          console.warn(`   To run real local evaluations, ensure Ollama is running:`);
+          console.warn(`   1. ollama serve`);
+          console.warn(`   2. ollama pull smollm:135m\n`);
+        });
     }
   );
 }
