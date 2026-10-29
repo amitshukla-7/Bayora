@@ -43,7 +43,11 @@ export const DatasetsPage: React.FC<DatasetsPageProps> = ({
     }
   }, [selectedDatasetId]);
 
-  const categories = selectedDataset?.categories || [];
+  const categories: string[] = Array.isArray(selectedDataset?.categories)
+    ? selectedDataset.categories
+    : typeof selectedDataset?.categories === 'string'
+    ? (() => { try { return JSON.parse(selectedDataset.categories); } catch { return []; } })()
+    : [];
 
   const filteredCases = (selectedDataset?.cases || []).filter((c) => {
     const matchesSearch =

@@ -789,7 +789,11 @@ export function deleteModel(id) {
 
 export function getAllDatasets() {
   const db = getDb();
-  return db.prepare('SELECT * FROM datasets ORDER BY created_at DESC').all();
+  const datasets = db.prepare('SELECT * FROM datasets ORDER BY created_at DESC').all();
+  return datasets.map(d => ({
+    ...d,
+    categories: typeof d.categories === 'string' ? JSON.parse(d.categories) : (d.categories || [])
+  }));
 }
 
 export function getDatasetById(id) {
@@ -797,7 +801,11 @@ export function getDatasetById(id) {
   const dataset = db.prepare('SELECT * FROM datasets WHERE id = ?').get(id);
   if (!dataset) return null;
   const cases = db.prepare('SELECT * FROM dataset_cases WHERE dataset_id = ?').all(id);
-  return { ...dataset, cases };
+  return {
+    ...dataset,
+    categories: typeof dataset.categories === 'string' ? JSON.parse(dataset.categories) : (dataset.categories || []),
+    cases
+  };
 }
 
 export function getDatasetCases(datasetId, limit = 50) {
