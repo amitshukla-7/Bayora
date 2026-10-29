@@ -7,7 +7,6 @@ import {
   User,
   Database,
   RotateCcw,
-  HardDrive,
   ShieldAlert
 } from 'lucide-react';
 import type { PageId } from '../types';
@@ -95,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Workspace Panel & Storage Meter */}
+      {/* Workspace Panel */}
       <div className="p-4 border-t border-slate-200/70 bg-slate-50/50">
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
@@ -104,23 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="text-[11px] text-slate-500 font-normal">Enterprise · AI Security</div>
             </div>
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-
-          {/* Storage Bar */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-[11px] text-slate-600">
-              <span className="flex items-center gap-1">
-                <HardDrive className="w-3 h-3 text-slate-400" /> Storage
-              </span>
-              <span className="font-mono font-medium text-slate-700">1.2 GB / 5.0 GB</span>
-            </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-[#9B7DE8] h-full rounded-full transition-all duration-300" style={{ width: '24%' }} />
-            </div>
-            <div className="text-[10px] text-slate-400 flex justify-between">
-              <span>24% Allocated</span>
-              <span className="italic">Demo Storage</span>
-            </div>
           </div>
 
           {/* Reset Demo Data Action */}

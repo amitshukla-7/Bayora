@@ -1,5 +1,5 @@
 import React from 'react';
-import { HardDrive, ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Server } from 'lucide-react';
 import type { PageId } from '../types';
 
 interface ProfilePageProps {
@@ -18,7 +18,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           Profile & Workspace Settings
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Manage your operator identity, workspace quotas, and local authentication sessions.
+          Manage your operator identity and local authentication sessions.
         </p>
       </div>
 
@@ -40,12 +40,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
       </div>
 
-      {/* Workspace Allocation Card */}
+      {/* Workspace Cluster Card */}
       <div className="bayora-card p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-purple-50 text-[#8762E0] flex items-center justify-center">
-              <HardDrive className="w-5 h-5" />
+              <Server className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">Bayora Platform Workspace</h3>
@@ -55,20 +55,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700">
             Local Dedicated
           </span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-semibold text-slate-700">Storage Usage Allocation</span>
-            <span className="font-mono font-bold text-slate-900">1.2 GB / 5.0 GB</span>
-          </div>
-          <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-            <div className="bg-[#9B7DE8] h-full rounded-full transition-all duration-300" style={{ width: '24%' }} />
-          </div>
-          <div className="flex justify-between text-[11px] text-slate-500">
-            <span>24% Allocated</span>
-            <span className="italic">Demo illustrative quota</span>
-          </div>
         </div>
       </div>
 
