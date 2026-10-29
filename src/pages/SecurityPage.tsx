@@ -15,7 +15,7 @@ interface SecurityPageProps {
   policies: Policy[];
   events: SecurityEvent[];
   onRefreshData: () => Promise<void>;
-  onNavigate: (page: PageId) => void;
+  onNavigate?: (page: PageId) => void;
 }
 
 export const SecurityPage: React.FC<SecurityPageProps> = ({

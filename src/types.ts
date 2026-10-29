@@ -5,8 +5,7 @@ export type PageId =
   | 'redteam'
   | 'evaluations'
   | 'datasets'
-  | 'profile'
-  | 'pricing';
+  | 'profile';
 
 export interface Model {
   id: string;

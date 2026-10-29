@@ -12,6 +12,7 @@ interface CommandPaletteProps {
   datasets: Dataset[];
 }
 
+
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,

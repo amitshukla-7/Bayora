@@ -6,7 +6,6 @@ import {
   Flame,
   User,
   Database,
-  Sparkles,
   RotateCcw,
   HardDrive,
   ShieldAlert
@@ -31,7 +30,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'redteam', label: 'Red Team', icon: Flame, badge: 'Core' },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'datasets', label: 'Datasets', icon: Database },
-    { id: 'pricing', label: 'Pricing', icon: Sparkles, badge: 'Coming Soon' },
   ];
 
   return (

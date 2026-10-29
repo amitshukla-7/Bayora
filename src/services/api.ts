@@ -175,23 +175,6 @@ export async function verifyAuditLedger(): Promise<AuditVerification> {
 }
 
 /**
- * AI Assistant
- */
-export async function queryAssistant(query: string, evaluationId?: string): Promise<{
-  query: string;
-  response: string;
-  groundedData: any;
-  timestamp: string;
-}> {
-  const res = await fetch(`${API_BASE}/assistant/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, evaluationId })
-  });
-  return handleResponse(res);
-}
-
-/**
  * Admin Reset
  */
 export async function resetDemoData(): Promise<{ success: boolean; message: string }> {

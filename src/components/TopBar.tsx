@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Search,
-  Bot,
   Bell,
   Command,
   ShieldCheck,
@@ -13,13 +12,11 @@ import type { PageId, NotificationItem } from '../types';
 interface TopBarProps {
   activePage?: PageId;
   onOpenCommandPalette: () => void;
-  onOpenAssistant: () => void;
   onSelectPage: (page: PageId) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   onOpenCommandPalette,
-  onOpenAssistant,
   onSelectPage,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -76,15 +73,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-        {/* AI Assistant Button */}
-        <button
-          onClick={onOpenAssistant}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#f4efff] hover:bg-[#ede5fd] border border-[#e5d9fd] text-[#7952D8] text-xs font-medium transition-all shadow-2xs cursor-pointer group"
-        >
-          <Bot className="w-4 h-4 text-[#8762E0] group-hover:scale-110 transition-transform" />
-          <span>AI Assistant</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#8762E0] animate-ping" />
-        </button>
 
         {/* Notifications Popover Trigger */}
         <div className="relative">
