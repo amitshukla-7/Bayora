@@ -33,6 +33,7 @@ import { syncModelsToDatabase } from './adapters/factory.mjs';
 import { generateIncidentAdvisory } from './advisor.mjs';
 import { executeMutation } from './mutations.mjs';
 import { checkDockerAvailable, runAllProbes } from './probes/runner.mjs';
+import { checkSystemHealth } from './health.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -88,16 +89,16 @@ app.post('/api/attestation/verify', async (c) => {
 });
 
 /**
- * Health Check
+ * System Health & Diagnostics Check
  */
-app.get('/api/health', (c) => {
-  return c.json({
-    status: 'ACTIVE',
-    product: 'Bayora Intelligence Center',
-    version: '1.2.0',
-    mode: 'Local Prototype',
-    timestamp: new Date().toISOString()
-  });
+app.get('/api/health', async (c) => {
+  try {
+    const health = await checkSystemHealth();
+    const statusCode = health.status === 'UNHEALTHY' ? 503 : 200;
+    return c.json(health, statusCode);
+  } catch (err) {
+    return c.json({ status: 'UNHEALTHY', error: err.message }, 500);
+  }
 });
 
 /**
