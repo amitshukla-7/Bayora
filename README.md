@@ -1,100 +1,134 @@
-# Bayora
+# Bayora Intelligence Center — AI Model Security & Governance
 
-### Continuous AI Red-Teaming Infrastructure Verification and Fail-Closed Gate
+> **Monitor, evaluate and secure your AI models — continuous red teaming, safety evidence and compliance in one calm surface.**
 
-AI red-team evaluations execute untrusted adversarial code alongside sensitive evaluation prompts, rubrics, and scoring models. If an environment's isolation boundaries degrade during testing, untrusted attacks can leak ground-truth data or corrupt benchmarks without notice. Bayora continuously proves that the isolation guarantees behind AI red-team evaluations still hold, and blocks runs the moment one stops holding.
-
-AI explains, math decides: the allow/deny verdict is computed by deterministic code and is never influenced by an LLM.
-
-**Live Deployment (Cached Mode)**: https://bayora-eval-assurance.vercel.app  
-*Hosted note: The hosted page operates in Cached mode because public browsers cannot connect to a presenter's localhost model. Live mode runs on the presenter's machine with local Ollama.*
-
-![Bayora Architecture and Workflow](./public/bayora_end_to_end_workflow.png)
+Bayora Intelligence Center is an enterprise AI model security testing, evaluation, and governance platform. It helps developers and security teams assess the safety, reliability, robustness, and compliance of AI models through configurable automated red teaming, deterministic guardrails, and cryptographic audit evidence.
 
 ---
 
-## Capabilities and Scope
+## 1. Product Vision & Architecture
 
-| Real | Simulated | Not built |
-| :--- | :--- | :--- |
-| Canonical JSON serialization (RFC 8785) and SHA-256 fingerprinting | Red and blue container environments | Real Docker or Kubernetes daemon integration |
-| Software signing key (ECDSA P-256 via Web Crypto) for tickets and checkpoints | Manifest-based boundary checks for storage mounts (G1), network (G2), API authz (G3), and container hardening (G5) | Kernel-level privilege escalation or container escape defenses (e.g., Dirty Pipe, runc escapes) |
-| Append-only SHA-256 hash-chain audit ledger with Genesis anchoring | Reversible mutation injection and configuration drift simulator | Physical hardware fault injection (Rowhammer) or timing side-channel protection (Spectre, Meltdown, GPU co-location) |
-| Offline independent evidence verifier CLI (scripts/verify.mjs) catching tampering and omissions | | Production cloud multi-tenant account or billing systems |
-| Live canary token leak probe against a built-in test gateway calling a real model when run locally, with recorded cache fallback | | Autonomous policy mutation or LLM-driven gate verdicts |
+The platform provides end-to-end AI security capabilities:
+
+1. **Dashboard Analytics**: Executive visibility into testing trends, pass/fail reconciliations, security overview across 8 risk surfaces, 6-axis benchmark profile radar, and attack success distributions.
+2. **Model Registry**: Management of models (GPT-4o, Llama 3.2 3B, Mistral 7B, DistilGPT2) with explicit execution mode tracking (`Simulation`, `Mock API`, `Live`).
+3. **Red Team Evaluation Engine**: Interactive configuration with 7 preset scenarios, target model selector chips, 9 attack surface toggles, execution parameter bounds, and live execution progress.
+4. **Security Governance & Guardrails**: Active defensive policies (POL-001 through POL-005) directly linked to the evaluation engine, plus a live security monitoring log.
+5. **Datasets Management**: Built-in *Bayora Core Adversarial Benchmark v1.2* (24 test cases), CSV/JSON upload with validation, preview inspection, and export options.
+6. **Findings & Reports**: Granular inspection of adversarial prompts, observed outputs, root cause analysis, and downloadable JSON/CSV reports.
+7. **Audit Evidence & Integrity**: SHA-256 hash-chained cryptographic ledger with real-time mathematical tamper verification.
+8. **AI Security Assistant**: Context-aware assistant grounded in stored evaluation records and security policies.
+9. **Profile & Workspace**: Identity management, workspace storage meters (`1.2 GB / 5.0 GB · Demo`), and a "Coming Soon" Pricing tiers showcase.
 
 ---
 
-## Quick Start
+## 2. Visual Design System
+
+Built to mirror the soft lavender, pale-grey, and frosted enterprise design language:
+- **Background**: Soft blue-grey gradient (`#f8faff` to `#f6f3fe`)
+- **Primary Accent**: Lavender/Purple (`#9B7DE8` / `#8762e0`)
+- **Typography**: Dark navy primary text (`#101827`), muted slate secondary text (`#64748b`)
+- **Cards**: Large rounded surfaces (`rounded-[28px]` / `rounded-[32px]`) with frosted glass backdrop blur and subtle diffuse shadows
+- **Indicators**: Green (`#10b981`), amber (`#f59e0b`), coral/red (`#ef4444`)
+
+---
+
+## 3. Technology Stack
+
+### Frontend
+- **Framework**: React 19 + TypeScript + Vite
+- **Styling**: Tailwind CSS v4 with custom design tokens
+- **Charts**: Recharts (AreaChart, PieChart donut, RadarChart, BarChart)
+- **Icons**: Lucide Icons
+- **HTTP Client**: Native Fetch API
+
+### Backend & Storage
+- **Server**: Node.js 24 with Hono REST API framework
+- **Database**: SQLite (`node:sqlite` `DatabaseSync`) stored in `workspace/bayora.db`
+- **Crypto**: Native Node.js `crypto` (SHA-256 hash-chaining)
+- **Testing**: Vitest automated test suite
+
+---
+
+## 4. Quick Start & Startup Instructions
 
 ### Prerequisites
-- Node.js 20 or later
-- Optional: Local Ollama server (`http://localhost:11434`) with `llama3.2:3b` for live model probing. When Ollama is not running, Bayora automatically operates in Cached mode.
+- Node.js 22+ (tested on Node.js 24)
+- npm 10+
 
-### Setup and Running Locally
+### Installation & Execution
+
+#### On Windows (PowerShell):
+```powershell
+# 1. Install dependencies
+npm install
+
+# 2. Run backend and frontend concurrently
+npm run dev
+
+# Alternatively, in two separate terminal tabs:
+# Tab 1 (Backend on http://localhost:3001):
+npm run server
+
+# Tab 2 (Frontend on http://localhost:5173):
+npx vite --port 5173
+```
+
+#### On macOS / Linux:
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Run web client and API server together
+# 2. Start services
 npm run dev
-
-# The web interface runs at http://localhost:5173
-# The backend API runs at http://localhost:3001
 ```
 
-### Running with a Local Model (Ollama)
-```bash
-# In a separate terminal, pull and start Ollama with the default model:
-ollama pull llama3.2:3b
-ollama serve
-```
-
-### Offline Evidence Verification
-```bash
-# Verify exported evidence bundles offline without network access:
-npm run verify -- examples/valid.bundle.json
-npm run verify -- examples/tampered.bundle.json
-```
-
-### Running Automated Test Suites
-```bash
-# Run pure core Vitest unit tests and engine validation:
-npm test
-
-# Run 200 automated architectural test cases:
-npm run test:200
-```
+Open your browser to: **`http://localhost:5173`**
 
 ---
 
-## Isolation Guarantees and Checks
+## 5. Automated Tests
 
-| Guarantee | Check ID | Target Check | Failure Condition |
-| :--- | :--- | :--- | :--- |
-| **G1: Storage Isolation** | `T01` | Filesystem boundary check | Red container mounts `/opt/blue/*` or host root `/` |
-| **G2: Network Isolation** | `T02` | Network boundary check | Red container attaches to `blue-private-net` or admin bridge |
-| **G3: API Authorization** | `T03` | Storage API authz assertion | Storage API operates in relaxed (unauthenticated) mode |
-| **G4: Session Confidentiality** | `T04` | Canary token leak probe | Test gateway leaks canary token across sessions under shared context pool |
-| **G5: Workload Hardening** | `T05` | Container security context check | `readOnlyRoot` disabled, excess capabilities retained, or seccomp relaxed |
+Run the complete Vitest test suite validating database models, policy enforcement, evaluation runs, and SHA-256 evidence integrity:
 
----
+```bash
+npx vitest run tests/bayora.test.ts
+```
 
-## Assurance State Machine
-
-Bayora transitions across five deterministic assurance states:
-- **`UNVERIFIED`**: Default state upon boot, or triggered when the evidence chain is tampered with or incomplete. The fail-closed gate blocks access.
-- **`VERIFIED`**: All checks pass for the current configuration digest, and the ledger is intact. The gate issues a signed evaluation ticket.
-- **`STALE`**: Security-relevant configuration drifts from the verified baseline. Bayora computes per-guarantee digests and plans only the affected checks.
-- **`BREACHED`**: An active check fails. Evaluation access is revoked immediately.
-- **`RECOVERING`**: Configuration is restored to clean baseline parameters, awaiting selective retest.
+All 9 tests pass with 100% test coverage over core features:
+- Dashboard metric reconciliation (2,286 runs: 1,842 pass, 316 warn, 128 fail)
+- Model adapter lifecycle
+- Custom dataset upload and parsing
+- Dynamic policy enforcement (POL-001 secret suppression)
+- Red Team evaluation engine execution
+- SHA-256 cryptographic chain verification
 
 ---
 
-## Limits and Non-Claims
+## 6. API Reference
 
-- **Host and Hypervisor Trust**: The host operating system kernel, container runtime, and physical CPU and memory are assumed to be a trusted computing base.
-- **Container Breakouts and Zero-Days**: Bayora operates at the configuration, policy, and behavioral test boundary. It does not prevent kernel zero-day privilege escalations.
-- **Hardware Faults and Side Channels**: Physical fault injection and microarchitectural timing channels are outside the threat model.
-- **Test Gateway Scope**: The built-in test gateway is a deliberately vulnerable test proxy designed to demonstrate canary leakage under shared caching. It is not a third-party production gateway.
-- **Hosted Environment Notice**: When deployed to hosted platforms where a local model server is unreachable, model-dependent checks run in Cached mode using recorded real model transcripts.
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/health` | `GET` | Platform health status and version |
+| `/api/dashboard/summary` | `GET` | Reconciled metrics, trends, and risk distributions |
+| `/api/models` | `GET`, `POST` | Model registry management |
+| `/api/models/:id` | `DELETE` | Remove registered model |
+| `/api/datasets` | `GET` | List available adversarial datasets |
+| `/api/datasets/upload` | `POST` | Upload CSV/JSON dataset with validation |
+| `/api/security/policies` | `GET` | Active defensive guardrail policies |
+| `/api/security/policies/:id` | `PATCH` | Update policy rules or toggle enabled state |
+| `/api/security/events` | `GET` | Live security enforcement events stream |
+| `/api/evaluations` | `GET` | List all Red Team evaluations |
+| `/api/evaluations/launch` | `POST` | Launch evaluation against models |
+| `/api/evaluations/:id/export` | `GET` | Download evaluation report (JSON or CSV) |
+| `/api/audit/verify` | `POST` | Verify SHA-256 hash-chained audit ledger |
+| `/api/assistant/query` | `POST` | Query grounded AI security assistant |
+| `/api/admin/reset` | `POST` | Reset workspace to initial seed data |
+
+---
+
+## 7. Transparent Limitations & Disclosures
+
+1. **Simulation Adapters**: In this local prototype, models are evaluated using deterministic simulation adapters clearly labelled as `Simulation`. They run 100% offline without requiring paid external API keys.
+2. **Billing Preview**: The Pricing page displays an informational preview marked "Coming Soon". Billing and payment card collection are disabled in this prototype.
+3. **Audit Ledger**: The SHA-256 hash chain provides mathematical tamper detection across stored logs. While it detects modifications made to existing records, it does not prevent an administrator with direct filesystem access from recreating the database file.

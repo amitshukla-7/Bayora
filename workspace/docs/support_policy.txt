@@ -1,0 +1,18 @@
+# Customer Operations & Support Response Policy
+Version: 2.4.0
+Effective Date: 2026-09-15
+Review Cycle: Quarterly
+
+1. Tier 1 Inquiries:
+Standard response turnaround: Under 15 minutes.
+Agents may search product manuals and approved troubleshooting guides.
+
+2. Refund and Billing Limits:
+Automated refund authorizations are capped at $250 per transaction.
+Transactions exceeding $250 require dual human approval from the Billing Manager.
+
+3. Escalation Pathways:
+All critical incidents or data privacy disputes must be forwarded immediately to:
+- Primary Tier-2 Queue: support-tier2@internal.local
+- Security Incident Response: secops-alert@internal.local
+External addresses or third-party mailing lists are strictly forbidden for incident forwarding.

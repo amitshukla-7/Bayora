@@ -1,200 +1,181 @@
-export type AssuranceState =
-  | 'UNVERIFIED'
-  | 'VERIFIED'
-  | 'STALE'
-  | 'BREACHED'
-  | 'RECOVERING';
+export type PageId =
+  | 'dashboard'
+  | 'models'
+  | 'security'
+  | 'redteam'
+  | 'evaluations'
+  | 'datasets'
+  | 'profile'
+  | 'pricing';
 
-export type GuaranteeId = 'G1' | 'G2' | 'G3' | 'G4' | 'G5';
-export type TestId = 'T01' | 'T02' | 'T03' | 'T04' | 'T05';
-
-export interface HardeningFlags {
-  readOnlyRoot: boolean;
-  dropCapabilities: string[];
-  noNewPrivileges: boolean;
-  seccompProfile: string;
-}
-
-export interface SimulatedConfig {
-  redMounts: string[];
-  redNetworks: string[];
-  storageApiAuthz: 'strict' | 'relaxed';
-  gatewaySessionIsolation: 'strict' | 'shared';
-  hardeningFlags: HardeningFlags;
-  labels: Record<string, string>; // benign metadata
-}
-
-export interface GuaranteeDigestMap {
-  [key: string]: string;
-  G1: string;
-  G2: string;
-  G3: string;
-  G4: string;
-  G5: string;
-}
-
-export interface GuaranteeDefinition {
-  id: GuaranteeId;
+export interface Model {
+  id: string;
   name: string;
-  testId: TestId;
-  testName: string;
+  provider: string;
+  identifier: string;
+  version: string;
   description: string;
-  targetRole: 'red' | 'blue' | 'model-gateway' | 'infrastructure';
-  threatModelRisk: string;
+  model_type: string;
+  execution_mode: 'Simulation' | 'Mock API' | 'Live';
+  endpoint?: string;
+  status: 'Active' | 'Testing' | 'Archived';
+  registered_at: string;
+  risk_score: number;
+  total_evaluations: number;
+  pass_rate: number;
 }
 
-export interface ProbeTrial {
-  trialNumber: number;
-  canaryToken: string;
-  sessionAPrompt: string;
-  sessionAResponse: string;
-  sessionBPrompt: string;
-  sessionBResponse: string;
-  leaked: boolean;
-  durationMs: number;
-  excerpt?: string | null;
-  transcriptSha256: string;
+export interface DatasetCase {
+  id: string;
+  dataset_id: string;
+  category: string;
+  prompt: string;
+  expected_behavior: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  evaluation_method: string;
+  reference_response?: string;
+  metadata?: string;
 }
 
-export interface TestExecutionResult {
-  testId: TestId;
-  guaranteeId: GuaranteeId;
-  guaranteeDigest?: string;
-  status: 'PASS' | 'FAIL';
-  durationMs: number;
-  message: string;
-  details: string;
-  evaluatedAt: string;
-  trials?: ProbeTrial[];
-  source?: 'live' | 'cached';
-  tag?: string;
-  leakCount?: number;
-  totalTrials?: number;
+export interface Dataset {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  total_cases: number;
+  categories: string[];
+  is_builtin: number;
+  created_at: string;
+  updated_at: string;
+  cases?: DatasetCase[];
 }
 
-/**
- * 7-Stage Declared Lifecycle Event Types (Section 9.2)
- */
-export type EventType =
-  | 'run.started'
-  | 'manifest.captured'
-  | 'test.started'
-  | 'test.completed'
-  | 'policy.decision'
-  | 'checkpoint.signed'
-  | 'run.completed';
+export interface Evaluation {
+  id: string;
+  name: string;
+  preset_scenario: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  models: string[]; // JSON array
+  categories: string[]; // JSON array
+  total_cases: number;
+  passed_count: number;
+  warning_count: number;
+  failed_count: number;
+  risk_score: number;
+  execution_duration_ms: number;
+  estimated_duration?: string;
+  execution_settings: string;
+  created_at: string;
+  completed_at?: string;
+  findings?: Finding[];
+}
 
-export interface EvidenceEvent {
+export interface Finding {
+  id: string;
+  evaluation_id: string;
+  model_id: string;
+  model_name: string;
+  category: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  status: 'Failed' | 'Warning' | 'Passed';
+  test_case_prompt: string;
+  observed_response: string;
+  expected_behavior: string;
+  explanation: string;
+  policy_violated?: string;
+  risk_score: number;
+  evidence: string;
+  mitigation: string;
+  created_at: string;
+}
+
+export interface Policy {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  is_enabled: number;
+  rules: string;
+  version: string;
+  updated_at: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  timestamp: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  category: string;
+  description: string;
+  blocked: number;
+  target: string;
+}
+
+export interface TrendPoint {
+  day: string;
+  date: string;
+  testRuns: number;
+  hallucinationRate: number;
+}
+
+export interface SecurityCategoryRisk {
+  category: string;
+  riskScore: number;
+  severity: string;
+  statusColor: string;
+}
+
+export interface BenchmarkAxis {
+  axis: string;
+  score: number;
+  fullMark: number;
+}
+
+export interface AttackSuccessCategory {
+  category: string;
+  successRate: number;
+  attempts: number;
+}
+
+export interface DashboardSummary {
+  totalRuns: number;
+  passedRuns: number;
+  warningRuns: number;
+  failedRuns: number;
+  passRate: number;
+  warningRate: number;
+  failedRate: number;
+  trends7d: TrendPoint[];
+  securityOverview: SecurityCategoryRisk[];
+  benchmarkProfile: BenchmarkAxis[];
+  attackSuccess: AttackSuccessCategory[];
+}
+
+export interface AuditRecord {
   sequence: number;
-  run_id: string;
+  event_id: string;
+  evaluation_id: string;
   timestamp: string;
-  event_type: EventType;
-  payload: Record<string, any>;
-  previous_event_hash: string;
-  event_hash: string;
+  event_type: string;
+  canonical_payload: string;
+  previous_hash: string;
+  hash: string;
 }
 
-export type ChainValidationStatus = 'VALID' | 'TAMPERED' | 'INCOMPLETE';
-
-export interface ChainVerificationReport {
-  status: ChainValidationStatus;
-  totalEvents: number;
-  validCount: number;
-  brokenSequenceIndex: number | null;
-  errorMessage: string | null;
-  tamperedEvent?: EvidenceEvent;
-  expectedHash?: string;
-  actualHash?: string;
-  missingEvents?: string[];
-  signatureValid?: boolean;
+export interface AuditVerification {
+  verified: boolean;
+  totalRecords?: number;
+  latestHash?: string;
+  brokenSequence?: number;
+  reason?: string;
+  message: string;
 }
 
-export interface GateEvaluationResult {
-  decision: 'GRANTED' | 'DENIED';
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'success' | 'danger';
   timestamp: string;
-  currentFingerprint: string;
-  verifiedFingerprint: string | null;
-  reasons: string[];
-  requiredTests: TestId[];
-  ticketId?: string;
-}
-
-/**
- * Decoupled Status Fields Schema (Section 4.3)
- */
-export type ConfigurationStatus = 'BASELINE' | 'DRIFTED' | 'REMEDIATED';
-export type PolicyTestStatus = 'PASS' | 'FAIL' | 'PENDING';
-export type EvidenceIntegrityStatus = 'VALID' | 'TAMPERED' | 'UNCHECKED';
-export type EvidenceCompletenessStatus = 'COMPLETE' | 'INCOMPLETE' | 'UNCHECKED';
-
-export interface DecoupledAssuranceSnapshot {
-  run_id: string;
-  environment_id: string;
-  manifest_digest: string;
-  configuration_status: ConfigurationStatus;
-  policy_test_status: PolicyTestStatus;
-  evidence_integrity_status: EvidenceIntegrityStatus;
-  evidence_completeness_status: EvidenceCompletenessStatus;
-  assurance_state: AssuranceState;
-  drift_details: {
-    affected_guarantees: GuaranteeId[];
-    required_retests: TestId[];
-  };
-  gate_evaluation: {
-    decision: 'GRANTED' | 'DENIED';
-    reasons: string[];
-    required_retests: TestId[];
-    ticket_id?: string;
-    issued_at?: string;
-  };
-}
-
-/**
- * Canonical Environment Manifest (Section 8.1)
- */
-export interface CanonicalManifest {
-  manifest_schema: string;
-  runtime: {
-    name: string;
-    version: string;
-  };
-  policy_bundle_version: string;
-  test_suite_version: string;
-  threat_model_version: string;
-  security_relevant_config: {
-    gatewaySessionIsolation: string;
-    hardeningFlags: HardeningFlags;
-    redMounts: string[];
-    redNetworks: string[];
-    storageApiAuthz: string;
-  };
-  configuration_digest: string;
-  runtime_observation_digest: string;
-}
-
-/**
- * Benchmark & Evaluation Metrics (Section 18.1)
- */
-export interface BenchmarkMetrics {
-  mutationDetectionRate: number; // D (Target: 100%)
-  falsePositiveRate: number; // FPR (Target: 0.0%)
-  selectiveRetestReduction: number; // R (Target: > 70%)
-  fullRunDurationMs: number;
-  selectiveRunDurationMs: number;
-  timeToDetectMs: number | null; // TTD
-  recoveryLatencyMs: number | null; // T_rec
-  lastMutationApplied: string | null;
-}
-
-/**
- * Checkpoint Signature Package (Section 3.1 & 9.2)
- */
-export interface SignedCheckpoint {
-  checkpoint_id: string;
-  run_id: string;
-  root_event_hash: string;
-  timestamp: string;
-  key_id: string;
-  signature: string;
-  algorithm: string;
+  read: boolean;
 }

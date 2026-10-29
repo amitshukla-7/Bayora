@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SentinelFlow Workspace Runtime
+workspace/*.db
+workspace/*.db-journal
+workspace/output/*
+!workspace/output/.gitkeep
+workspace/outbox/*
+!workspace/outbox/.gitkeep

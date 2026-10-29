@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * Bayora - Independent Offline Evidence Verifier CLI
+ * SentinelFlow — Independent Offline Evidence Verifier CLI
  * 
- * Verifies exported evidence bundles (bayora.evidence/1 schema)
- * completely offline with zero network access.
+ * Verifies exported evidence bundles completely offline with zero network access.
+ * Validates SHA-256 hash chaining, block sequence completeness, and ECDSA P-256 attestation.
  * 
  * Usage:
  *   node scripts/verify.mjs <bundle.json>
  *   npm run verify -- <bundle.json>
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { verifyBundle } from '../src/core/bundle.ts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { verifyEvidenceBundle } from '../server/ledger.mjs';
+import { verifyBundle as verifyLegacyBundle } from '../src/core/bundle.ts';
 
 async function main() {
   const args = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
@@ -41,34 +42,57 @@ async function main() {
   }
 
   console.log(`\n======================================================`);
-  console.log(` BAYORA · OFFLINE EVIDENCE BUNDLE VERIFIER `);
+  console.log(` SENTINELFLOW · OFFLINE EVIDENCE BUNDLE VERIFIER `);
   console.log(`======================================================`);
-  console.log(`Verifying: ${filePath}`);
-  console.log(`Schema:    ${bundle.schema || 'unknown'}`);
-  console.log(`Signing:   ${bundle.keyLabel || 'unknown'}`);
+  console.log(`Target:    ${filePath}`);
 
-  const report = await verifyBundle(bundle);
+  // Check if SentinelFlow bundle or legacy bundle
+  if (bundle.manifest && Array.isArray(bundle.events)) {
+    console.log(`Format:    SentinelFlow Evidence Bundle v${bundle.manifest.bundle_version || '1.0.0'}`);
+    console.log(`Events:    ${bundle.manifest.event_count} blocks`);
+    console.log(`Authority: ${bundle.manifest.key_label || 'Software signing key'} (${bundle.manifest.key_id || 'authority'})`);
+    console.log(`Generated: ${bundle.manifest.generated_at}`);
 
-  if (report.status === 'VALID') {
-    console.log(`\n✅ STATUS: VALID`);
-    console.log(`   Blocks Verified:   ${report.totalBlocks}`);
-    console.log(`   Fingerprint Match: ${report.fingerprintMatch}`);
-    console.log(`   Signatures:        Valid (ECDSA P-256)`);
-    console.log(`   Plan Completeness: 100% Present`);
-    console.log(`======================================================\n`);
-    process.exit(0);
-  } else if (report.status === 'INCOMPLETE') {
-    console.error(`\n❌ STATUS: INCOMPLETE`);
-    console.error(`   Missing Blocks: ${report.missingBlocks?.join(', ') || 'none'}`);
-    console.error(`   Details:        ${report.errorMessage}`);
-    console.error(`======================================================\n`);
-    process.exit(2);
+    const result = await verifyEvidenceBundle(bundle);
+
+    if (result.status === 'VERIFIED') {
+      console.log(`\n✅ [AUDIT PROOF VALID]`);
+      console.log(`   Status:             VERIFIED`);
+      console.log(`   Verified Blocks:    ${result.totalEvents}/${result.totalEvents}`);
+      console.log(`   Hash Continuity:    100% Intact`);
+      console.log(`   Digital Signature:  Valid (ECDSA P-256)`);
+      console.log(`   Genesis Anchor:     Intact`);
+      console.log(`   Details:            ${result.details}`);
+      console.log(`======================================================\n`);
+      process.exit(0);
+    } else if (result.status === 'INCOMPLETE') {
+      console.error(`\n❌ [AUDIT PROOF INCOMPLETE]`);
+      console.error(`   Status:             INCOMPLETE`);
+      console.error(`   Missing Sequence:   #${result.failedSequence}`);
+      console.error(`   Details:            ${result.details}`);
+      console.log(`======================================================\n`);
+      process.exit(2);
+    } else {
+      console.error(`\n❌ [AUDIT PROOF TAMPERED]`);
+      console.error(`   Status:             TAMPERED`);
+      console.error(`   Failed Sequence:    #${result.failedSequence}`);
+      console.error(`   Recorded Hash:      ${result.recordedHash || 'N/A'}`);
+      console.error(`   Recomputed Hash:    ${result.recomputedHash || 'N/A'}`);
+      console.error(`   Details:            ${result.details}`);
+      console.log(`======================================================\n`);
+      process.exit(1);
+    }
   } else {
-    console.error(`\n❌ STATUS: TAMPERED`);
-    console.error(`   First Bad Block Index: ${report.firstBadBlockIndex !== null ? report.firstBadBlockIndex : 'N/A'}`);
-    console.error(`   Details:               ${report.errorMessage}`);
-    console.error(`======================================================\n`);
-    process.exit(1);
+    // Fallback to legacy verification
+    console.log(`Format:    Legacy Diagnostic Bundle`);
+    const report = await verifyLegacyBundle(bundle);
+    if (report.status === 'VALID') {
+      console.log(`\n✅ STATUS: VALID (${report.totalBlocks} blocks verified)`);
+      process.exit(0);
+    } else {
+      console.error(`\n❌ STATUS: ${report.status}`);
+      process.exit(1);
+    }
   }
 }
 

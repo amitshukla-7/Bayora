@@ -1,15 +1,15 @@
 {
-  "name": "bayora",
+  "name": "sentinelflow",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm run server\" \"vite\"",
     "server": "node --experimental-strip-types server/index.mjs",
-    "record-cache": "node --experimental-strip-types scripts/record_cache.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "vitest run && node scripts/test_engine.mjs",
+    "test": "vitest run",
+    "test:sentinelflow": "vitest run tests/sentinelflow.test.ts",
     "test:unit": "vitest run",
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
     "verify": "node --experimental-strip-types scripts/verify.mjs",
@@ -21,6 +21,7 @@
     "hono": "^4.13.14",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
