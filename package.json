@@ -13,6 +13,7 @@
     "test:unit": "vitest run",
     "test:200": "node --experimental-strip-types scripts/test_200_cases.mjs",
     "verify": "node --experimental-strip-types scripts/verify.mjs",
+    "seed:dev": "node --experimental-strip-types scripts/seed_dev.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
