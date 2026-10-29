@@ -6,7 +6,8 @@ import type {
   Policy,
   Dataset,
   Finding,
-  SecurityEvent
+  SecurityEvent,
+  PlatformSettings
 } from './types';
 import {
   fetchDashboardSummary,
@@ -15,6 +16,7 @@ import {
   fetchDatasets,
   fetchFindings,
   fetchSecurityEvents,
+  fetchSettings,
   resetDemoData
 } from './services/api';
 
@@ -29,11 +31,24 @@ import { SecurityPage } from './pages/SecurityPage';
 import { DatasetsPage } from './pages/DatasetsPage';
 import { EvaluationResultsPage } from './pages/EvaluationResultsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export function App() {
-  const [activePage, setActivePage] = useState<PageId>('dashboard');
-  const [selectedEvaluationId, setSelectedEvaluationId] = useState<string>('');
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
+  const getInitialParam = (key: string, fallback: string) => {
+    if (typeof window === 'undefined') return fallback;
+    const val = new URLSearchParams(window.location.search).get(key);
+    return val || fallback;
+  };
+
+  const [activePage, setActivePage] = useState<PageId>(() => {
+    return (getInitialParam('tab', 'dashboard') as PageId) || 'dashboard';
+  });
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<string>(() => {
+    return getInitialParam('evalId', '');
+  });
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>(() => {
+    return getInitialParam('category', 'All');
+  });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Global Dialogs
@@ -46,7 +61,36 @@ export function App() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [settings, setSettings] = useState<PlatformSettings>({
+    timeout_seconds: 60,
+    concurrency: 4,
+    active_models: ['mod_llama32', 'mod_gpt4o'],
+    active_policies: ['POL-001', 'POL-002', 'POL-003', 'POL-004', 'POL-005'],
+    theme: 'system',
+    log_level: 'info',
+    default_dataset: 'ds_standard_safety_v1',
+    streaming_enabled: true
+  });
   const [isLoading, setIsLoading] = useState(true);
+
+  // URL Query Parameters Synchronization (tab, evalId, category)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activePage);
+      if (selectedEvaluationId) {
+        url.searchParams.set('evalId', selectedEvaluationId);
+      } else {
+        url.searchParams.delete('evalId');
+      }
+      if (selectedCategoryFilter && selectedCategoryFilter !== 'All') {
+        url.searchParams.set('category', selectedCategoryFilter);
+      } else {
+        url.searchParams.delete('category');
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [activePage, selectedEvaluationId, selectedCategoryFilter]);
 
   const loadAllData = async () => {
     try {
@@ -56,14 +100,16 @@ export function App() {
         policiesRes,
         datasetsRes,
         findingsRes,
-        eventsRes
+        eventsRes,
+        settingsRes
       ] = await Promise.allSettled([
         fetchDashboardSummary(),
         fetchModels(),
         fetchPolicies(),
         fetchDatasets(),
         fetchFindings(),
-        fetchSecurityEvents()
+        fetchSecurityEvents(),
+        fetchSettings()
       ]);
 
       if (summaryRes.status === 'fulfilled') {
@@ -91,6 +137,7 @@ export function App() {
       if (datasetsRes.status === 'fulfilled') setDatasets(datasetsRes.value.datasets || []);
       if (findingsRes.status === 'fulfilled') setFindings(findingsRes.value.findings || []);
       if (eventsRes.status === 'fulfilled') setEvents(eventsRes.value.events || []);
+      if (settingsRes.status === 'fulfilled') setSettings(settingsRes.value.settings);
     } catch (err) {
       console.error('Failed to load Bayora platform data:', err);
     } finally {
@@ -208,6 +255,19 @@ export function App() {
               {activePage === 'profile' && (
                 <ProfilePage
                   onResetDemo={handleResetDemo}
+                />
+              )}
+
+              {activePage === 'settings' && (
+                <SettingsPage
+                  settings={settings}
+                  models={models}
+                  datasets={datasets}
+                  policies={policies}
+                  onRefreshSettings={async () => {
+                    const res = await fetchSettings();
+                    setSettings(res.settings);
+                  }}
                 />
               )}
             </>

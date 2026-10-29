@@ -5,7 +5,19 @@ export type PageId =
   | 'redteam'
   | 'evaluations'
   | 'datasets'
-  | 'profile';
+  | 'profile'
+  | 'settings';
+
+export interface PlatformSettings {
+  timeout_seconds: number;
+  concurrency: number;
+  active_models: string[];
+  active_policies: string[];
+  theme: 'light' | 'dark' | 'system';
+  log_level: 'error' | 'warn' | 'info' | 'debug';
+  default_dataset: string;
+  streaming_enabled: boolean;
+}
 
 // =========================================================================
 // SentinelFlow Assurance, Guarantee & Isolation Types

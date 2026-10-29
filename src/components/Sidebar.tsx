@@ -7,7 +7,8 @@ import {
   User,
   Database,
   RotateCcw,
-  ShieldAlert
+  ShieldAlert,
+  Sliders
 } from 'lucide-react';
 import type { PageId } from '../types';
 
@@ -29,6 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'redteam', label: 'Red Team', icon: Flame, badge: 'Core' },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'datasets', label: 'Datasets', icon: Database },
+    { id: 'settings', label: 'Settings', icon: Sliders },
   ];
 
   return (

@@ -11,7 +11,8 @@ import type {
   ProbeRunResult,
   LabStatus,
   LabMutationResult,
-  AdvisorIncidentResponse
+  AdvisorIncidentResponse,
+  PlatformSettings
 } from '../types';
 
 const API_BASE = '/api';
@@ -316,4 +317,47 @@ export async function launchEvaluationStream(
 
   return finalResult || { status: 'COMPLETED' };
 }
+
+/**
+ * Platform Settings (Persistent SQLite Key-Value Store)
+ */
+export async function fetchSettings(): Promise<{ settings: PlatformSettings }> {
+  const res = await fetch(`${API_BASE}/settings`);
+  return handleResponse<{ settings: PlatformSettings }>(res);
+}
+
+export async function updateSetting<K extends keyof PlatformSettings>(
+  key: K,
+  value: PlatformSettings[K]
+): Promise<{ success: boolean; key: K; value: PlatformSettings[K]; updated_at: string }> {
+  const res = await fetch(`${API_BASE}/settings/${String(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value })
+  });
+  return handleResponse(res);
+}
+
+export async function updateBulkSettings(
+  settings: Partial<PlatformSettings>
+): Promise<{ success: boolean; settings: PlatformSettings }> {
+  const res = await fetch(`${API_BASE}/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  });
+  return handleResponse(res);
+}
+
+export async function resetSettings(
+  section = 'all'
+): Promise<{ success: boolean; section: string; settings: PlatformSettings }> {
+  const res = await fetch(`${API_BASE}/settings/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ section })
+  });
+  return handleResponse(res);
+}
+
 

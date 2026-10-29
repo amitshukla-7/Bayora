@@ -34,6 +34,13 @@ import { generateIncidentAdvisory } from './advisor.mjs';
 import { executeMutation } from './mutations.mjs';
 import { checkDockerAvailable, runAllProbes } from './probes/runner.mjs';
 import { checkSystemHealth } from './health.mjs';
+import {
+  getAllSettings,
+  getSetting,
+  updateSetting,
+  updateBulkSettings,
+  resetSettings
+} from './settings.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -98,6 +105,63 @@ app.get('/api/health', async (c) => {
     return c.json(health, statusCode);
   } catch (err) {
     return c.json({ status: 'UNHEALTHY', error: err.message }, 500);
+  }
+});
+
+/**
+ * Settings Management (Persistent Key-Value Store)
+ */
+app.get('/api/settings', (c) => {
+  try {
+    const settings = getAllSettings();
+    return c.json({ settings });
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.get('/api/settings/:key', (c) => {
+  const key = c.req.param('key');
+  try {
+    const value = getSetting(key);
+    return c.json({ key, value });
+  } catch (err) {
+    return c.json({ error: err.message }, err.statusCode || 400);
+  }
+});
+
+app.put('/api/settings/:key', async (c) => {
+  const key = c.req.param('key');
+  try {
+    const body = await c.req.json();
+    if (!body || !Object.hasOwn(body, 'value')) {
+      return c.json({ error: 'Request body must contain "value"' }, 400);
+    }
+    const updated = updateSetting(key, body.value);
+    return c.json({ success: true, ...updated });
+  } catch (err) {
+    return c.json({ error: err.message, issues: err.issues }, err.statusCode || 400);
+  }
+});
+
+app.patch('/api/settings', async (c) => {
+  try {
+    const body = await c.req.json();
+    const updated = updateBulkSettings(body);
+    return c.json({ success: true, settings: updated });
+  } catch (err) {
+    return c.json({ error: err.message, issues: err.issues }, err.statusCode || 400);
+  }
+});
+
+app.post('/api/settings/reset', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const section = body?.section || 'all';
+    const settings = resetSettings(section);
+    return c.json({ success: true, section, settings });
+  } catch (err) {
+    return c.json({ error: err.message }, err.statusCode || 400);
   }
 });
 
@@ -360,16 +424,20 @@ app.post('/api/admin/reset', (c) => {
   return c.json(res);
 });
 
-serve(
-  {
-    fetch: app.fetch,
-    port: PORT
-  },
-  (info) => {
-    console.log(`\n======================================================`);
-    console.log(` BAYORA INTELLIGENCE CENTER — AI MODEL SECURITY PLATFORM`);
-    console.log(` Running on http://localhost:${PORT}`);
-    console.log(` Environment: Local Interactive Prototype`);
-    console.log(`======================================================\n`);
-  }
-);
+export { app };
+
+if (process.env.NODE_ENV !== 'test') {
+  serve(
+    {
+      fetch: app.fetch,
+      port: PORT
+    },
+    (info) => {
+      console.log(`\n======================================================`);
+      console.log(` BAYORA INTELLIGENCE CENTER — AI MODEL SECURITY PLATFORM`);
+      console.log(` Running on http://localhost:${PORT}`);
+      console.log(` Environment: Local Interactive Prototype`);
+      console.log(`======================================================\n`);
+    }
+  );
+}

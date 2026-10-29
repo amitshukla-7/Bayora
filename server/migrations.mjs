@@ -424,6 +424,19 @@ export const MIGRATIONS = [
         db.exec("ALTER TABLE security_events ADD COLUMN target TEXT DEFAULT 'gateway'");
       }
     }
+  },
+  {
+    version: 3,
+    name: '003_settings_table',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    }
   }
 ];
 
