@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { appendLedgerEvent } from './ledger.mjs';
 import { executeGatedTool } from './gateway.mjs';
 import { insertRun, updateRun, insertIncident } from './db.mjs';
@@ -86,7 +87,7 @@ export async function analyzeThreat({ task, toolName, params, documentExcerpt = 
  * Executes an end-to-end user task, routing every tool call through the SentinelFlow Gateway.
  */
 export async function runAgentTask({ task, mode = 'deterministic' }) {
-  const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+  const runId = `run-${Date.now().toString(36)}-${crypto.randomBytes(2).toString('hex')}`;
   const now = new Date().toISOString();
 
   // Create run in database

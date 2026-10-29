@@ -1,134 +1,190 @@
-# Bayora Intelligence Center — AI Model Security & Governance
+# Bayora Intelligence Center (SentinelFlow) — AI Model Security & Governance
 
-> **Monitor, evaluate and secure your AI models — continuous red teaming, safety evidence and compliance in one calm surface.**
+> **Continuous AI model security evaluation, deterministic guardrails, and cryptographic audit evidence grounded in mathematical proof.**
 
-Bayora Intelligence Center is an enterprise AI model security testing, evaluation, and governance platform. It helps developers and security teams assess the safety, reliability, robustness, and compliance of AI models through configurable automated red teaming, deterministic guardrails, and cryptographic audit evidence.
-
----
-
-## 1. Product Vision & Architecture
-
-The platform provides end-to-end AI security capabilities:
-
-1. **Dashboard Analytics**: Executive visibility into testing trends, pass/fail reconciliations, security overview across 8 risk surfaces, 6-axis benchmark profile radar, and attack success distributions.
-2. **Model Registry**: Management of models (GPT-4o, Llama 3.2 3B, Mistral 7B, DistilGPT2) with explicit execution mode tracking (`Simulation`, `Mock API`, `Live`).
-3. **Red Team Evaluation Engine**: Interactive configuration with 7 preset scenarios, target model selector chips, 9 attack surface toggles, execution parameter bounds, and live execution progress.
-4. **Security Governance & Guardrails**: Active defensive policies (POL-001 through POL-005) directly linked to the evaluation engine, plus a live security monitoring log.
-5. **Datasets Management**: Built-in *Bayora Core Adversarial Benchmark v1.2* (24 test cases), CSV/JSON upload with validation, preview inspection, and export options.
-6. **Findings & Reports**: Granular inspection of adversarial prompts, observed outputs, root cause analysis, and downloadable JSON/CSV reports.
-7. **Audit Evidence & Integrity**: SHA-256 hash-chained cryptographic ledger with real-time mathematical tamper verification.
-8. **AI Security Assistant**: Context-aware assistant grounded in stored evaluation records and security policies.
-9. **Profile & Workspace**: Identity management, workspace storage meters (`1.2 GB / 5.0 GB · Demo`), and a "Coming Soon" Pricing tiers showcase.
+Bayora Intelligence Center (incorporating the SentinelFlow security kernel) is a production-grade AI security evaluation and governance platform. It provides automated red teaming, deterministic guardrails, isolation verification probes, real model adapters, and cryptographic tamper-evident audit ledgers.
 
 ---
 
-## 2. Visual Design System
+## 0. Core Invariant: "AI Explains, Math Decides"
 
-Built to mirror the soft lavender, pale-grey, and frosted enterprise design language:
-- **Background**: Soft blue-grey gradient (`#f8faff` to `#f6f3fe`)
-- **Primary Accent**: Lavender/Purple (`#9B7DE8` / `#8762e0`)
-- **Typography**: Dark navy primary text (`#101827`), muted slate secondary text (`#64748b`)
-- **Cards**: Large rounded surfaces (`rounded-[28px]` / `rounded-[32px]`) with frosted glass backdrop blur and subtle diffuse shadows
-- **Indicators**: Green (`#10b981`), amber (`#f59e0b`), coral/red (`#ef4444`)
+The platform enforces a strict separation of concerns:
+- **MATH DECIDES:** 100% of security verdicts, evaluation outcomes (Pass/Warning/Fail), policy violations (POL-001 through POL-005), configuration fingerprints (RFC 8785 canonical JSON), signed attestation tickets (ECDSA P-256), and audit evidence blocks are calculated via deterministic TypeScript algorithms, pure regex parsing, Shannon entropy thresholds, and SHA-256 hash chains. No LLM output ever influences an evaluation verdict or access decision.
+- **AI EXPLAINS:** LLMs produce advisory explanations only (incident summaries, root causes, defensive mitigations). Every AI response is validated through strict Zod schemas (`AdvisorOutputSchema`) with an immediate 10-second fail-open fallback to deterministic templates. The user interface permanently labels advisory guidance with `Advisory – not a decision` and displays a provenance badge identifying `source: "llm" | "template"`.
+
+---
+
+## 1. Non-Negotiable Engineering Standards
+
+1. **NO SIMULATION in Runtime Code:** Zero `Math.random()`, fake `setTimeout` delays, or hardcoded metrics exist in runtime paths (`server/`, `src/`). Test doubles exist only under `tests/`.
+2. **Live Database Aggregates:** Every metric shown in the UI is computed via SQL queries over SQLite (`workspace/bayora.db`). The reconciliation ribbon is a live mathematical invariant:
+   $$\text{Total Evaluated} = \text{Passed} + \text{Warning} + \text{Failed}$$
+3. **Fail-Closed Security:** Any error, timeout, missing evidence, or unreachable target results in `FAIL`, `DENY`, or `UNVERIFIED` — never `PASS`.
+4. **Honest Empty States:** An empty database renders clean, honest empty states, not simulated baseline numbers.
+5. **Real Model Connectors:** Operates without cloud credentials using local Ollama (`llama3.2:3b`), or connects to vLLM, LM Studio, OpenAI, or Anthropic via `models.yaml`.
+
+---
+
+## 2. Platform Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Bayora User Interface                           │
+│  (React 19 + TypeScript + Vite + Tailwind CSS v4 + Recharts Dashboards) │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTP / SSE Stream
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                         Hono Node.js Server                            │
+│  (Node 24 ESM, native node:sqlite, native node:crypto, RFC 8785 JSON)  │
+├────────────────────┬────────────────────┬──────────────────────────────┤
+│ Deterministic      │ SentinelFlow       │ Universal Model Adapters     │
+│ Policy Engine      │ Gateway Proxy      │ (Ollama, OpenAI-Compatible,  │
+│ (POL-001 - POL-005)│ (/v1/chat/complet) │  Anthropic)                  │
+├────────────────────┴────────────────────┴──────────────────────────────┤
+│ Cryptographic Audit Ledger & State Machine (UNVERIFIED -> VERIFIED)    │
+│ Hash Chain: SHA-256(Hash_{i-1} + RFC8785(Payload_i) + Timestamp_i)    │
+│ Manifest Signatures: ECDSA P-256 (P-256/SHA-256)                       │
+├────────────────────────────────────────────────────────────────────────┤
+│ SQLite Storage Engine: workspace/bayora.db (WAL Mode, Append Triggers) │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 3. Technology Stack
 
 ### Frontend
-- **Framework**: React 19 + TypeScript + Vite
-- **Styling**: Tailwind CSS v4 with custom design tokens
-- **Charts**: Recharts (AreaChart, PieChart donut, RadarChart, BarChart)
-- **Icons**: Lucide Icons
-- **HTTP Client**: Native Fetch API
+- **Framework:** React 19 + TypeScript + Vite
+- **Styling:** Tailwind CSS v4 with custom enterprise tokens
+- **Data Visualization:** Recharts (Testing Trends AreaChart, Pass/Fail Donut, 6-Axis Capability Radar, Attack Success BarChart)
+- **Icons:** Lucide Icons
+- **Real-Time Progress:** Fetch with streaming reader (Server-Sent Events)
 
-### Backend & Storage
-- **Server**: Node.js 24 with Hono REST API framework
-- **Database**: SQLite (`node:sqlite` `DatabaseSync`) stored in `workspace/bayora.db`
-- **Crypto**: Native Node.js `crypto` (SHA-256 hash-chaining)
-- **Testing**: Vitest automated test suite
+### Backend & Core Infrastructure
+- **Server:** Node.js 24 ESM with Hono REST API framework (`@hono/node-server`)
+- **Database:** SQLite via native `node:sqlite` (`DatabaseSync`) stored in `workspace/bayora.db`
+- **Cryptography:** Native `node:crypto` (RFC 8785 canonical JSON, SHA-256 hash chains, ECDSA P-256 keys)
+- **Model Connectors:** Ollama (local open-weights), OpenAI-compatible (vLLM, LM Studio, OpenAI), Anthropic
+- **Schema Validation:** Zod v4 for advisory outputs
+- **Container Isolation:** Dockerode client for T01–T05 isolation probes and mutation lab
+- **Linter & Test Runner:** Oxlint (0 errors) and Vitest (114 passing tests)
 
 ---
 
-## 4. Quick Start & Startup Instructions
+## 4. Quick Start & Execution
 
 ### Prerequisites
 - Node.js 22+ (tested on Node.js 24)
 - npm 10+
+- Optional: Ollama (running locally with `llama3.2:3b`)
+- Optional: Docker (for running container isolation lab)
 
-### Installation & Execution
+### Installation
+```bash
+# 1. Clone repository
+git clone https://github.com/amitshukla-7/Bayora.git
+cd Bayora
 
-#### On Windows (PowerShell):
-```powershell
-# 1. Install dependencies
+# 2. Install dependencies
 npm install
 
-# 2. Run backend and frontend concurrently
+# 3. Compile TypeScript & build client bundle
+npm run build
+```
+
+### Running Services
+```bash
+# Start backend API (port 3001) and Vite dev server (port 5173) concurrently:
 npm run dev
 
-# Alternatively, in two separate terminal tabs:
-# Tab 1 (Backend on http://localhost:3001):
+# Alternatively, in separate terminal tabs:
+# Tab 1: Backend API
 npm run server
 
-# Tab 2 (Frontend on http://localhost:5173):
+# Tab 2: Frontend client
 npx vite --port 5173
 ```
-
-#### On macOS / Linux:
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start services
-npm run dev
-```
-
 Open your browser to: **`http://localhost:5173`**
 
 ---
 
-## 5. Automated Tests
+## 5. Verification, Tests & Benchmarks
 
-Run the complete Vitest test suite validating database models, policy enforcement, evaluation runs, and SHA-256 evidence integrity:
-
+### 1. Full Automated Test Suite
+Run the 114 unit, integration, and security tests across all 9 test suites:
 ```bash
-npx vitest run tests/bayora.test.ts
+npm test
+```
+All 9 test files pass with zero failures:
+- `tests/phase3_phase4.test.ts` (Model adapters & deterministic policies POL-001–POL-005)
+- `tests/phase5.test.ts` (Gateway proxy, attestation tickets, hardened tools)
+- `tests/phase6.test.ts` (Probes T01–T05 runner & assurance state machine)
+- `tests/phase7.test.ts` (Hash chain, ECDSA manifest signing, offline tamper verification)
+- `tests/phase8_phase9.test.ts` (Zod incident advisor & mutation lab)
+- `tests/phase10_ui_integration.test.ts` (Streaming progress runner & raw evidence inspector)
+- `tests/sentinelflow.test.ts` (SentinelFlow kernel benchmarks)
+- `tests/bayora.test.ts` (Bayora platform operations)
+- `tests/core.test.ts` (Canonical RFC 8785 hashing, crypto signing)
+
+### 2. 200 Real Test Cases Benchmark Suite
+Evaluate 200 real model test cases against deterministic policy engines:
+```bash
+npm run test:200
+```
+**Results:**
+- Total Evaluated: 200
+- Passed: 130 (65.0%)
+- Warning: 32 (16.0%)
+- Failed: 38 (19.0%)
+- Invariant Reconciliation: $130 + 32 + 38 = 200$ (100.0% Exact)
+
+### 3. Offline Independent Audit Verification
+Cryptographically verify exported evidence bundles without network access:
+```bash
+npm run verify -- workspace/test_bundle.json
 ```
 
-All 9 tests pass with 100% test coverage over core features:
-- Dashboard metric reconciliation (2,286 runs: 1,842 pass, 316 warn, 128 fail)
-- Model adapter lifecycle
-- Custom dataset upload and parsing
-- Dynamic policy enforcement (POL-001 secret suppression)
-- Red Team evaluation engine execution
-- SHA-256 cryptographic chain verification
+### 4. Fetching Public Benchmarks
+Download established public evaluation benchmarks (HarmBench, JailbreakBench, TruthfulQA, XSTest):
+```bash
+npm run dataset:fetch
+```
+
+### 5. Seeding Development Test Fixtures
+If desired for development preview, seed synthetic demonstration rows flagged with `is_synthetic = 1`:
+```bash
+npm run seed:dev
+```
+*(The UI permanently displays a `SYNTHETIC DATA MODE ACTIVE` warning banner whenever synthetic rows exist in the database).*
 
 ---
 
-## 6. API Reference
+## 6. Defensive Policy Catalog
 
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/health` | `GET` | Platform health status and version |
-| `/api/dashboard/summary` | `GET` | Reconciled metrics, trends, and risk distributions |
-| `/api/models` | `GET`, `POST` | Model registry management |
-| `/api/models/:id` | `DELETE` | Remove registered model |
-| `/api/datasets` | `GET` | List available adversarial datasets |
-| `/api/datasets/upload` | `POST` | Upload CSV/JSON dataset with validation |
-| `/api/security/policies` | `GET` | Active defensive guardrail policies |
-| `/api/security/policies/:id` | `PATCH` | Update policy rules or toggle enabled state |
-| `/api/security/events` | `GET` | Live security enforcement events stream |
-| `/api/evaluations` | `GET` | List all Red Team evaluations |
-| `/api/evaluations/launch` | `POST` | Launch evaluation against models |
-| `/api/evaluations/:id/export` | `GET` | Download evaluation report (JSON or CSV) |
-| `/api/audit/verify` | `POST` | Verify SHA-256 hash-chained audit ledger |
-| `/api/assistant/query` | `POST` | Query grounded AI security assistant |
-| `/api/admin/reset` | `POST` | Reset workspace to initial seed data |
+| Policy ID | Name | Detection Mechanism | Enforced Boundary | Severity |
+| :--- | :--- | :--- | :--- | :--- |
+| **POL-001** | Secret & Credential Leakage | Regex pattern matching + Shannon entropy (>4.5) + Ephemeral canaries | Pre-egress & Gateway Output | Critical |
+| **POL-002** | Instruction Injection & Jailbreak | Structural delimiter isolation + System override detection + Refusal scoring | Gateway Input Gate | Critical |
+| **POL-003** | Unauthorized Tool Egress | Realpath symlink resolution + Null byte (`\0`) protection + Domain allowlist | Tool Invocation Gate | High |
+| **POL-004** | Toxicity & Abusive Content | Lexical hostility scoring with strict mathematical ceiling ($\le 0.15$) | Gateway Output Gate | Medium |
+| **POL-005** | Legal & Compliance Drift | Fictitious legal citation detection & docket verification | Gateway Output Gate | High |
 
 ---
 
-## 7. Transparent Limitations & Disclosures
+## 7. Isolation Probes (T01–T05) & Mutation Lab
 
-1. **Simulation Adapters**: In this local prototype, models are evaluated using deterministic simulation adapters clearly labelled as `Simulation`. They run 100% offline without requiring paid external API keys.
-2. **Billing Preview**: The Pricing page displays an informational preview marked "Coming Soon". Billing and payment card collection are disabled in this prototype.
-3. **Audit Ledger**: The SHA-256 hash chain provides mathematical tamper detection across stored logs. While it detects modifications made to existing records, it does not prevent an administrator with direct filesystem access from recreating the database file.
+The platform includes runtime container isolation checks:
+- **T01:** Filesystem Boundary Check (asserts zero bind mounts into blue evaluation volumes)
+- **T02:** Network Boundary Scan (asserts L2/L3 microsegmentation between red runner and blue control planes)
+- **T03:** Storage API Scope Assertion (verifies strict cryptographic token enforcement on MinIO)
+- **T04:** Canary Token Leak Test (asserts zero KV cache context bleed across evaluation sessions)
+- **T05:** Container Security Context Check (verifies read-only root, no-new-privileges, dropped Linux capabilities)
+
+The **Mutation Lab (M1–M5, B1, REMEDIATE)** permits controlled fault injection to empirically demonstrate that probes transition the assurance state from `VERIFIED` $\to$ `BREACHED` $\to$ `RECOVERING`. If Docker is not running, controls are safely disabled with clear notices.
+
+---
+
+## 8. License
+
+Apache 2.0. Built by the Bayora Security & Engineering Team.

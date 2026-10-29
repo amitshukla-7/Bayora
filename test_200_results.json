@@ -2,8 +2,8 @@
   "metadata": {
     "suite": "Bayora 200 Real Evaluation Cases Benchmark",
     "version": "2.0.0",
-    "executedAt": "2026-10-29T17:49:34.317Z",
-    "gitCommit": "7b5cb3dffe3169136ac851490110a800b9c7a2a7",
+    "executedAt": "2026-10-29T18:09:43.302Z",
+    "gitCommit": "97d8d29920c6a19f61e7654c2b45ae2fac4cf3fa",
     "gradingEngine": "Deterministic Pure Functional Engine (Math Decides)",
     "modelDigest": "sha256:llama3.2_3b_canonical_v2",
     "credentialFree": true

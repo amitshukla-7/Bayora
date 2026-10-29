@@ -208,7 +208,6 @@ export async function executeSimulatedTest(
 
   // If a forced delay is explicitly provided (e.g. for synthetic timing tests), honor it
   if (forcedDelayMs !== undefined && forcedDelayMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, forcedDelayMs));
   }
 
   const evaluatedAt = new Date().toISOString();
