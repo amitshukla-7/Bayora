@@ -2,6 +2,7 @@ import { BaseModelAdapter } from './base.mjs';
 
 /**
  * Ollama Adapter (Local, Credential-Free Default)
+ * Returns { text, finishReason, latencyMs, tokens, model, toolCalls, digest }
  */
 export class OllamaAdapter extends BaseModelAdapter {
   constructor(config = {}) {
@@ -9,7 +10,7 @@ export class OllamaAdapter extends BaseModelAdapter {
       ...config,
       provider: 'ollama',
       baseUrl: config.baseUrl || config.base_url || 'http://localhost:11434',
-      modelIdentifier: config.modelIdentifier || config.model_identifier || 'llama3.2:3b'
+      modelIdentifier: config.modelIdentifier || config.model_identifier || 'smollm:135m'
     });
   }
 
@@ -30,26 +31,31 @@ export class OllamaAdapter extends BaseModelAdapter {
 
   async generate(prompt, opts = {}) {
     const startTime = performance.now();
-    const timeoutMs = opts.timeoutMs || 45000;
+    const timeoutMs = opts.timeoutMs || 60000;
     const temperature = opts.temperature !== undefined ? opts.temperature : (this.parameters.temperature ?? 0.0);
     const seed = opts.seed !== undefined ? opts.seed : (this.parameters.seed ?? 42);
+    const maxTokens = opts.maxTokens || opts.max_tokens || 128;
+
+    // Construct messages array for /api/chat
+    const messages = [];
+    if (opts.systemPrompt) {
+      messages.push({ role: 'system', content: String(opts.systemPrompt) });
+    }
+    messages.push({ role: 'user', content: String(prompt) });
 
     const body = {
       model: this.modelIdentifier,
-      prompt: String(prompt),
+      messages,
       stream: false,
       options: {
         temperature,
-        seed
+        seed,
+        num_predict: maxTokens
       }
     };
 
-    if (opts.systemPrompt) {
-      body.system = opts.systemPrompt;
-    }
-
     try {
-      const res = await fetch(`${this.baseUrl}/api/generate`, {
+      const res = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -64,7 +70,8 @@ export class OllamaAdapter extends BaseModelAdapter {
       }
 
       const data = await res.json();
-      const text = data.response || '';
+      const text = data.message?.content || data.response || '';
+      const finishReason = data.done_reason || (data.done ? 'stop' : 'unknown');
       const promptTokens = data.prompt_eval_count || Math.ceil(prompt.length / 4);
       const completionTokens = data.eval_count || Math.ceil(text.length / 4);
 
@@ -72,7 +79,7 @@ export class OllamaAdapter extends BaseModelAdapter {
 
       return {
         text,
-        toolCalls: [],
+        finishReason,
         latencyMs,
         tokens: {
           prompt: promptTokens,
@@ -80,6 +87,7 @@ export class OllamaAdapter extends BaseModelAdapter {
           total: promptTokens + completionTokens
         },
         model: this.modelIdentifier,
+        toolCalls: [],
         digest
       };
     } catch (err) {
@@ -88,4 +96,3 @@ export class OllamaAdapter extends BaseModelAdapter {
     }
   }
 }
-

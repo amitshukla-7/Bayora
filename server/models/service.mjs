@@ -129,6 +129,7 @@ export async function createModelRecord(data, verifyNow = false) {
   const now = new Date().toISOString();
 
   // Validate endpoint / base_url against SSRF and scheme restrictions
+  
   let sanitizedEndpoint = validated.endpoint || null;
   if (sanitizedEndpoint) {
     const check = await validateAndSanitizeUrl(sanitizedEndpoint, { allowLocalhost: true, throwOnError: true });

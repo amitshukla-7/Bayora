@@ -83,6 +83,7 @@ export class AnthropicAdapter extends BaseModelAdapter {
 
       return {
         text,
+        finishReason: data.stop_reason || 'stop',
         toolCalls: [],
         latencyMs,
         tokens: {

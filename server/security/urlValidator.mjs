@@ -412,7 +412,7 @@ export function validateHuggingFaceRepoId(repoId) {
   if (!HF_REPO_REGEX.test(trimmed)) {
     return {
       valid: false,
-      error: `Invalid Hugging Face repository format: "${trimmed}". Expected "owner/model" (e.g. "meta-llama/Llama-3.2-3B-Instruct").`
+      error: `Invalid Hugging Face repository format: "${trimmed}". Expected format: "org/model-name" (e.g. "meta-llama/Llama-3.2-3B-Instruct").`
     };
   }
 

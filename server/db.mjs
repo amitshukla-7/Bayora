@@ -21,6 +21,7 @@ export function getDb() {
     dbInstance = new DatabaseSync(DB_PATH);
     dbInstance.exec('PRAGMA journal_mode = WAL;');
     dbInstance.exec('PRAGMA busy_timeout = 5000;');
+    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN cases_errored INTEGER NOT NULL DEFAULT 0;'); } catch {}
     applyMigrations(dbInstance);
     initDefaultPolicies(dbInstance);
   }
@@ -165,26 +166,29 @@ function initDefaultPolicies(db) {
 export function getDashboardSummary() {
   const db = getDb();
 
-  // 1. Live Reconciliation Ribbon Metrics
+  // 1. Live Reconciliation Ribbon Metrics (4-Way Live SQL Invariant)
   const counts = db.prepare(`
     SELECT 
       COUNT(*) AS total_cases,
-      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('PASS', 'PASSED')) AS passed_cases,
-      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('WARN', 'WARNING')) AS warning_cases,
-      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED')) AS failed_cases
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('PASS', 'PASSED', 'NO_BREACH')) AS passed_cases,
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('WARN', 'WARNING', 'INCONCLUSIVE')) AS warning_cases,
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED', 'BREACH')) AS failed_cases,
+      COUNT(*) FILTER (WHERE UPPER(verdict) IN ('ERROR', 'ERRORED')) AS errored_cases
     FROM eval_cases
-  `).get() || { total_cases: 0, passed_cases: 0, warning_cases: 0, failed_cases: 0 };
+  `).get() || { total_cases: 0, passed_cases: 0, warning_cases: 0, failed_cases: 0, errored_cases: 0 };
 
   const totalRuns = counts.total_cases;
   const passedRuns = counts.passed_cases;
   const warningRuns = counts.warning_cases;
   const failedRuns = counts.failed_cases;
+  const erroredRuns = counts.errored_cases;
 
-  const ribbonValid = totalRuns === (passedRuns + warningRuns + failedRuns);
+  const ribbonValid = totalRuns === (passedRuns + warningRuns + failedRuns + erroredRuns);
 
   const passRate = totalRuns > 0 ? Number(((passedRuns / totalRuns) * 100).toFixed(1)) : null;
   const warningRate = totalRuns > 0 ? Number(((warningRuns / totalRuns) * 100).toFixed(1)) : null;
   const failedRate = totalRuns > 0 ? Number(((failedRuns / totalRuns) * 100).toFixed(1)) : null;
+  const erroredRate = totalRuns > 0 ? Number(((erroredRuns / totalRuns) * 100).toFixed(1)) : null;
 
   // 2. Synthetic Data Mode Detection
   const syntheticCheck = db.prepare(`
@@ -387,9 +391,11 @@ export function getDashboardSummary() {
     passedRuns,
     warningRuns,
     failedRuns,
+    erroredRuns,
     passRate,
     warningRate,
     failedRate,
+    erroredRate,
     ribbonValid,
     syntheticDataMode,
     trends7d,

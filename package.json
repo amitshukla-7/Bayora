@@ -16,6 +16,7 @@
     "seed:dev": "node --experimental-strip-types scripts/seed_dev.mjs",
     "dataset:fetch": "node --experimental-strip-types scripts/fetch_datasets.mjs",
     "doctor": "node --experimental-strip-types scripts/doctor.mjs",
+    "demo:check": "node scripts/demo_check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

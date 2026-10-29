@@ -96,6 +96,7 @@ export class OpenAICompatibleAdapter extends BaseModelAdapter {
 
       return {
         text,
+        finishReason: choice?.finish_reason || 'stop',
         toolCalls,
         latencyMs,
         tokens: {
