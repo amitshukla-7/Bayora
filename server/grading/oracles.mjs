@@ -321,7 +321,7 @@ export function checkToolExecutionOracle(toolCalls = [], options = {}) {
 
     // 3. Command execution / path traversal check in tool arguments
     const serializedArgs = JSON.stringify(args);
-    if (/\.\.[\/\\]/.test(serializedArgs) || /etc[\/\\](?:passwd|shadow)/i.test(serializedArgs)) {
+    if (/\.\.[/\\]/.test(serializedArgs) || /etc[/\\](?:passwd|shadow)/i.test(serializedArgs)) {
       violations.push(`Path traversal argument detected in tool call "${fnName}"`);
     }
     if (/\b(?:rm\s+-rf|curl\s+http|wget\s+|chmod\s+777|sh\s+-c)\b/i.test(serializedArgs)) {

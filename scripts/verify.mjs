@@ -12,39 +12,43 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { verifyEvidenceBundle } from '../server/ledger.mjs';
+import { verifyEvidenceBundle, exportEvidenceBundle } from '../server/ledger.mjs';
 import { verifyBundle as verifyLegacyBundle } from '../src/core/bundle.ts';
 
 async function main() {
   const args = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
   const filePath = args[0] || process.env.BUNDLE_FILE;
 
-  if (!filePath) {
-    console.error('Usage: node scripts/verify.mjs <bundle.json>');
-    process.exit(1);
-  }
-
-  const fullPath = resolve(process.cwd(), filePath);
-  let content;
-  try {
-    content = readFileSync(fullPath, 'utf8');
-  } catch (err) {
-    console.error(`[ERROR] Unable to read file at ${fullPath}: ${err.message}`);
-    process.exit(1);
-  }
-
   let bundle;
-  try {
-    bundle = JSON.parse(content);
-  } catch (err) {
-    console.error(`[ERROR] Invalid JSON syntax: ${err.message}`);
-    process.exit(1);
-  }
 
-  console.log(`\n======================================================`);
-  console.log(` SENTINELFLOW · OFFLINE EVIDENCE BUNDLE VERIFIER `);
-  console.log(`======================================================`);
-  console.log(`Target:    ${filePath}`);
+  if (!filePath) {
+    console.log(`\n======================================================`);
+    console.log(` SENTINELFLOW · OFFLINE EVIDENCE BUNDLE VERIFIER `);
+    console.log(`======================================================`);
+    console.log(`Target:    Live SQLite Audit Ledger (Auto-Export)`);
+    bundle = await exportEvidenceBundle();
+  } else {
+    const fullPath = resolve(process.cwd(), filePath);
+    let content;
+    try {
+      content = readFileSync(fullPath, 'utf8');
+    } catch (err) {
+      console.error(`[ERROR] Unable to read file at ${fullPath}: ${err.message}`);
+      process.exit(1);
+    }
+
+    try {
+      bundle = JSON.parse(content);
+    } catch (err) {
+      console.error(`[ERROR] Invalid JSON syntax: ${err.message}`);
+      process.exit(1);
+    }
+
+    console.log(`\n======================================================`);
+    console.log(` SENTINELFLOW · OFFLINE EVIDENCE BUNDLE VERIFIER `);
+    console.log(`======================================================`);
+    console.log(`Target:    ${filePath}`);
+  }
 
   // Check if SentinelFlow bundle or legacy bundle
   if (bundle.manifest && Array.isArray(bundle.events)) {
