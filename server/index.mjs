@@ -59,6 +59,10 @@ import {
   getCriticalGuardrailStatus,
   testPolicyInteractively
 } from './policies/service.mjs';
+import {
+  runBenchmarkValidation,
+  getLatestValidationReport
+} from './grading/validator.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -288,6 +292,27 @@ app.post('/api/models/import-hf', async (c) => {
     return c.json(result, 201);
   } catch (err) {
     return c.json({ error: err.message }, 400);
+  }
+});
+
+/**
+ * Machine Grader Validation (Cohen's Kappa & Gold Benchmark)
+ */
+app.get('/api/grading/validation-report', (c) => {
+  try {
+    const report = getLatestValidationReport();
+    return c.json(report);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.post('/api/grading/run-benchmark', (c) => {
+  try {
+    const report = runBenchmarkValidation();
+    return c.json(report);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
   }
 });
 
