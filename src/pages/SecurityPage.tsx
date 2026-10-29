@@ -1037,7 +1037,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
             }}
             className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium cursor-pointer"
           >
-            Harmful Toxicity (POL-004)
+            Harmful Toxicity (POL-004 - Heuristic)
           </button>
           <button
             type="button"
@@ -1070,8 +1070,8 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({
 
           <div className="space-y-1.5">
             <label className="font-bold text-slate-700 flex items-center justify-between">
-              <span>Simulated Model Output (Gateway Outbound)</span>
-              <span className="text-[10px] text-slate-400">POL-001 / POL-004 Gate</span>
+              <span>Candidate Model Output (Gateway Outbound)</span>
+              <span className="text-[10px] text-slate-400">POL-001 / POL-004 (Heuristic) Gate</span>
             </label>
             <textarea
               rows={4}
