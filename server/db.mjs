@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
-import { resolve, dirname } from 'node:path';
+import path, { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync } from 'node:fs';
+import fs, { existsSync, mkdirSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { applyMigrations } from './migrations.mjs';
 
@@ -1011,6 +1011,27 @@ export function resetAllDemoData() {
   db.exec('DELETE FROM runs');
   db.exec('DELETE FROM incidents');
   db.exec('DELETE FROM events');
+
+  // Clean workspace outbox and output artifacts (preserve .gitkeep)
+  try {
+    const outboxDir = path.resolve(process.cwd(), 'workspace', 'outbox');
+    if (fs.existsSync(outboxDir)) {
+      for (const file of fs.readdirSync(outboxDir)) {
+        if (file !== '.gitkeep') {
+          try { fs.unlinkSync(path.join(outboxDir, file)); } catch {}
+        }
+      }
+    }
+    const outputDir = path.resolve(process.cwd(), 'workspace', 'output');
+    if (fs.existsSync(outputDir)) {
+      for (const file of fs.readdirSync(outputDir)) {
+        if (file !== '.gitkeep') {
+          try { fs.unlinkSync(path.join(outputDir, file)); } catch {}
+        }
+      }
+    }
+  } catch {}
+
   return resetToSeed();
 }
 

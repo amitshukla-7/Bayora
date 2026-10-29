@@ -1,6 +1,7 @@
 import { resolve, dirname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
+import crypto from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,15 +10,26 @@ const DOCS_DIR = resolve(ROOT_DIR, 'workspace', 'docs');
 const OUTPUT_DIR = resolve(ROOT_DIR, 'workspace', 'output');
 const OUTBOX_DIR = resolve(ROOT_DIR, 'workspace', 'outbox');
 
+const ALLOWED_EMAIL_DOMAINS = new Set([
+  'bayora.internal',
+  'sentinelflow.io',
+  'company.corp'
+]);
+
 /**
  * 6.1 Document reader
  * Reads files from an explicitly configured workspace.
- * Rejects path traversal and symlink escapes.
+ * Rejects path traversal, null bytes, and symlink escapes via canonical realpath.
  */
 export function executeReadDocument(params) {
   const filename = params?.filename;
   if (!filename || typeof filename !== 'string') {
     throw new Error('Invalid parameter: filename is required and must be a string.');
+  }
+
+  // Prevent null bytes
+  if (filename.includes('\0')) {
+    throw new Error(`Null byte injection denied in filename: "${filename}".`);
   }
 
   // Prevent path traversal
@@ -36,12 +48,19 @@ export function executeReadDocument(params) {
     throw new Error(`File not found: "${filename}" does not exist in documents workspace.`);
   }
 
-  const stats = statSync(resolvedPath);
+  // Defeat symlinks by checking real canonical path
+  const realPath = realpathSync(resolvedPath);
+  const realDocsDir = realpathSync(DOCS_DIR);
+  if (!realPath.startsWith(realDocsDir)) {
+    throw new Error(`Symlink escape denied: "${filename}" targets resource outside sandbox root.`);
+  }
+
+  const stats = statSync(realPath);
   if (stats.size > 1024 * 1024) {
     throw new Error(`File size limit exceeded: "${filename}" is larger than 1MB.`);
   }
 
-  const content = readFileSync(resolvedPath, 'utf8');
+  const content = readFileSync(realPath, 'utf8');
   return {
     success: true,
     filename,
@@ -59,6 +78,10 @@ export function executeSearchDocuments(params) {
   const query = params?.query;
   if (!query || typeof query !== 'string') {
     throw new Error('Invalid parameter: query is required and must be a string.');
+  }
+
+  if (query.includes('\0')) {
+    throw new Error('Null byte injection denied in search query.');
   }
 
   const cleanQuery = query.toLowerCase().trim();
@@ -112,6 +135,10 @@ export function executeWriteReport(params) {
     throw new Error('Invalid parameter: content is required.');
   }
 
+  if (filename.includes('\0')) {
+    throw new Error(`Null byte injection denied in filename: "${filename}".`);
+  }
+
   if (filename.includes('..') || filename.startsWith('/') || filename.startsWith('\\')) {
     throw new Error(`Path traversal denied: unauthorized relative path sequence detected in "${filename}".`);
   }
@@ -143,7 +170,7 @@ export function executeWriteReport(params) {
 /**
  * 6.4 Mock email sender
  * Creates an email artifact in a local outbox.
- * Does not send real emails.
+ * Restricts outbound targets to allowlisted domains.
  */
 export function executeMockSendEmail(params) {
   const to = params?.to;
@@ -160,7 +187,13 @@ export function executeMockSendEmail(params) {
     throw new Error('Invalid parameter: "body" is required.');
   }
 
-  const artifactId = `email-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const recipientDomain = to.split('@')[1]?.toLowerCase();
+  if (!recipientDomain || !ALLOWED_EMAIL_DOMAINS.has(recipientDomain)) {
+    throw new Error(`Unauthorized email destination: "${to}" is not in approved allowlist.`);
+  }
+
+  const randSuffix = crypto.randomBytes(3).toString('hex');
+  const artifactId = `email-${Date.now()}-${randSuffix}`;
   const artifactPath = resolve(OUTBOX_DIR, `${artifactId}.json`);
 
   const emailArtifact = {

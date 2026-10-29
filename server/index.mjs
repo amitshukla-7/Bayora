@@ -22,11 +22,19 @@ import {
 } from './db.mjs';
 
 import { executeEvaluationRun } from './evaluationEngine.mjs';
+import { proxyRouter } from './proxy.mjs';
+import {
+  issueAttestationTicket,
+  computeCanonicalPolicyFingerprint,
+  verifyAttestationTicket
+} from './attestation.mjs';
+import { syncModelsToDatabase } from './adapters/factory.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
-// Ensure database is initialized
+// Ensure database is initialized & synchronized with models.yaml
 getDb();
+syncModelsToDatabase();
 
 const app = new Hono();
 
@@ -34,11 +42,45 @@ const app = new Hono();
 app.use('*', async (c, next) => {
   c.header('Access-Control-Allow-Origin', '*');
   c.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Attestation-Ticket');
   if (c.req.method === 'OPTIONS') {
     return c.text('', 204);
   }
   await next();
+});
+
+// OpenAI-Compatible Proxy Gateway (/v1/chat/completions)
+app.route('/v1', proxyRouter);
+
+/**
+ * Attestation Ticket Management
+ */
+app.post('/api/attestation/ticket', async (c) => {
+  try {
+    const ticket = await issueAttestationTicket();
+    return c.json(ticket, 201);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.get('/api/attestation/fingerprint', async (c) => {
+  try {
+    const fingerprint = await computeCanonicalPolicyFingerprint();
+    return c.json({ fingerprint });
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.post('/api/attestation/verify', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = await verifyAttestationTicket(body.ticket);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
 });
 
 /**
