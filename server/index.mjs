@@ -29,6 +29,9 @@ import {
   verifyAttestationTicket
 } from './attestation.mjs';
 import { syncModelsToDatabase } from './adapters/factory.mjs';
+import { generateIncidentAdvisory } from './advisor.mjs';
+import { executeMutation } from './mutations.mjs';
+import { checkDockerAvailable, runAllProbes } from './probes/runner.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -274,6 +277,53 @@ app.get('/api/audit/evidence', (c) => {
 app.post('/api/audit/verify', (c) => {
   const verification = verifyAuditLedger();
   return c.json(verification);
+});
+
+/**
+ * AI Security Advisor (AI Explains, Math Decides)
+ */
+app.post('/api/advisor/explain', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = await generateIncidentAdvisory(body);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * Isolation Probes
+ */
+app.post('/api/probes/run', async (c) => {
+  try {
+    const result = await runAllProbes();
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * Mutation Lab (M1-M5, B1)
+ */
+app.get('/api/lab/status', async (c) => {
+  const docker = await checkDockerAvailable();
+  return c.json({
+    labModeEnabled: process.env.BAYORA_LAB_MODE === '1',
+    dockerAvailable: docker.available,
+    requiresDockerNotice: !docker.available ? 'REQUIRES DOCKER LAB' : null
+  });
+});
+
+app.post('/api/lab/mutate/:id', async (c) => {
+  const mutationId = c.req.param('id');
+  try {
+    const result = await executeMutation(mutationId);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 403);
+  }
 });
 
 /**
