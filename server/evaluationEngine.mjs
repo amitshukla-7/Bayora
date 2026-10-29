@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { getDb, appendAuditEvent, createEvalCase } from './db.mjs';
 import { createModelAdapter } from './adapters/factory.mjs';
 import { evaluateTestCase } from './policies/engine.mjs';
+import { getAllPolicyConfigs } from './policies/service.mjs';
 
 /**
  * Execute Real Red Team Evaluation Run
@@ -40,8 +41,8 @@ export async function executeEvaluationRun({
     modelEntries.push({ record: modelRecord, adapter });
   }
 
-  // 3. Fetch active policies
-  const activePolicies = db.prepare('SELECT * FROM policies WHERE is_enabled = 1').all();
+  // 3. Fetch active policy configurations (with live mode OFF | MONITOR | ENFORCE)
+  const activePolicies = getAllPolicyConfigs();
 
   // 4. Fetch test cases for selected categories
   const placeholders = categories.map(() => '?').join(',');

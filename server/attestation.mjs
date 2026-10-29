@@ -25,13 +25,13 @@ export async function computeCanonicalPolicyFingerprint() {
   const policies = getAllPolicies();
   // Canonical representation of all policies sorted deterministically
   const canonicalPack = policies
-    .filter(p => p.is_enabled)
     .map(p => ({
       id: p.id,
       name: p.name,
       category: p.category,
       severity: p.severity,
       effect: p.effect,
+      mode: (p.is_enabled === 0) ? 'OFF' : (p.mode || 'ENFORCE'),
       tool: p.tool,
       rules: typeof p.rules === 'string' ? JSON.parse(p.rules || '{}') : p.rules,
       version: p.version

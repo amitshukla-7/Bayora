@@ -294,16 +294,57 @@ export interface Finding {
   created_at: string;
 }
 
+export type PolicyMode = 'OFF' | 'MONITOR' | 'ENFORCE';
+
 export interface Policy {
   id: string;
   name: string;
   category: string;
   description: string;
   severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  mode?: PolicyMode;
   is_enabled: number;
-  rules: string;
+  rules: string | Record<string, any>;
   version: string;
   updated_at: string;
+  updated_by?: string;
+  effect?: string;
+  tool?: string;
+}
+
+export interface PolicyHistoryItem {
+  id: number;
+  policy_id: string;
+  previous_mode: PolicyMode;
+  new_mode: PolicyMode;
+  diff_json: string;
+  reason: string;
+  actor: string;
+  fingerprint_before: string;
+  fingerprint_after: string;
+  created_at: string;
+}
+
+export interface CriticalStatusResponse {
+  anyDisabled: boolean;
+  disabled: Array<{
+    policyId: string;
+    name: string;
+    severity: string;
+    mode: PolicyMode;
+  }>;
+  fingerprint: string;
+}
+
+export interface PolicyTestResult {
+  policyId: string;
+  mode: PolicyMode;
+  effectiveVerdict: 'Pass' | 'Warning' | 'Fail';
+  score: number;
+  explanation: string;
+  matchedSpans: Array<{ start: number; end: number; text: string }>;
+  redactedText?: string;
+  simulatedTimeMs: number;
 }
 
 export interface SecurityEvent {

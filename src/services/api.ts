@@ -4,6 +4,10 @@ import type {
   Evaluation,
   Finding,
   Policy,
+  PolicyMode,
+  PolicyHistoryItem,
+  CriticalStatusResponse,
+  PolicyTestResult,
   SecurityEvent,
   DashboardSummary,
   AuditRecord,
@@ -94,13 +98,48 @@ export async function fetchPolicies(): Promise<{ policies: Policy[]; total: numb
   return handleResponse<{ policies: Policy[]; total: number }>(res);
 }
 
-export async function updatePolicy(id: string, updates: Partial<Policy>): Promise<Policy> {
+export async function updatePolicy(
+  id: string,
+  updates: {
+    mode?: PolicyMode;
+    rules?: any;
+    reason?: string;
+    actor?: string;
+    is_enabled?: number;
+    name?: string;
+    description?: string;
+    severity?: string;
+  }
+): Promise<Policy> {
   const res = await fetch(`${API_BASE}/security/policies/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)
   });
   return handleResponse<Policy>(res);
+}
+
+export async function fetchPolicyHistory(id: string): Promise<{ history: PolicyHistoryItem[]; total: number }> {
+  const res = await fetch(`${API_BASE}/security/policies/${id}/history`);
+  return handleResponse<{ history: PolicyHistoryItem[]; total: number }>(res);
+}
+
+export async function fetchCriticalStatus(): Promise<CriticalStatusResponse> {
+  const res = await fetch(`${API_BASE}/security/critical-status`);
+  return handleResponse<CriticalStatusResponse>(res);
+}
+
+export async function testPolicyInteractively(payload: {
+  policyId: string;
+  prompt?: string;
+  response?: string;
+}): Promise<PolicyTestResult> {
+  const res = await fetch(`${API_BASE}/security/policies/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<PolicyTestResult>(res);
 }
 
 export async function fetchSecurityEvents(): Promise<{ events: SecurityEvent[] }> {

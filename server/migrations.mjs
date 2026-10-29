@@ -437,6 +437,58 @@ export const MIGRATIONS = [
         );
       `);
     }
+  },
+  {
+    version: 4,
+    name: '004_policy_configs_and_history',
+    up: (db) => {
+      const pCols = db.prepare('PRAGMA table_info(policies)').all().map((c) => c.name);
+      if (!pCols.includes('mode')) {
+        db.exec("ALTER TABLE policies ADD COLUMN mode TEXT NOT NULL DEFAULT 'ENFORCE'");
+      }
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS policy_configs (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          category TEXT NOT NULL,
+          severity TEXT NOT NULL DEFAULT 'Medium',
+          mode TEXT NOT NULL DEFAULT 'ENFORCE' CHECK (mode IN ('OFF', 'MONITOR', 'ENFORCE')),
+          rules_json TEXT NOT NULL DEFAULT '{}',
+          version INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_by TEXT NOT NULL DEFAULT 'operator'
+        );
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS policy_config_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          policy_id TEXT NOT NULL REFERENCES policy_configs(id),
+          previous_mode TEXT NOT NULL,
+          new_mode TEXT NOT NULL,
+          diff_json TEXT NOT NULL,
+          reason TEXT,
+          actor TEXT NOT NULL DEFAULT 'operator',
+          fingerprint_before TEXT NOT NULL,
+          fingerprint_after TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      const count = db.prepare('SELECT COUNT(*) as cnt FROM policy_configs').get().cnt;
+      if (count === 0) {
+        const existingPolicies = db.prepare('SELECT * FROM policies').all();
+        const insertStmt = db.prepare(`
+          INSERT INTO policy_configs (id, name, category, severity, mode, rules_json, version, updated_at, updated_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 'system_seed')
+        `);
+        for (const p of existingPolicies) {
+          const mode = p.is_enabled === 1 ? 'ENFORCE' : 'OFF';
+          insertStmt.run(p.id, p.name, p.category, p.severity, mode, p.rules || '{}', p.version || 1);
+        }
+      }
+    }
   }
 ];
 
@@ -451,6 +503,13 @@ export function applyMigrations(db) {
 
   const appliedRows = db.prepare('SELECT version FROM _migrations').all();
   const appliedSet = new Set(appliedRows.map((r) => r.version));
+
+  // Self-healing check: if core tables are missing despite recorded migration, re-apply
+  const hasPolicies = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='policies'").get();
+  if (!hasPolicies && appliedSet.size > 0) {
+    appliedSet.clear();
+    db.prepare('DELETE FROM _migrations').run();
+  }
 
   for (const m of MIGRATIONS) {
     if (!appliedSet.has(m.version)) {

@@ -133,10 +133,28 @@ function initDefaultPolicies(db) {
   const stmt = db.prepare(`
     INSERT INTO policies (id, name, category, description, severity, is_enabled, effect, tool, rules, version, is_synthetic, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      category = excluded.category,
+      description = excluded.description,
+      severity = excluded.severity,
+      is_enabled = excluded.is_enabled,
+      effect = excluded.effect,
+      tool = excluded.tool,
+      rules = excluded.rules,
+      version = excluded.version,
+      updated_at = excluded.updated_at
+  `);
+
+  const configStmt = db.prepare(`
+    INSERT INTO policy_configs (id, name, category, severity, mode, rules_json, version, updated_at, updated_by)
+    VALUES (?, ?, ?, ?, 'ENFORCE', ?, ?, ?, 'system_seed')
+    ON CONFLICT(id) DO UPDATE SET mode = excluded.mode, rules_json = excluded.rules_json
   `);
 
   for (const p of defaultPolicies) {
     stmt.run(p.id, p.name, p.category, p.description, p.severity, p.is_enabled, p.effect, p.tool, p.rules, p.version, p.updated_at);
+    configStmt.run(p.id, p.name, p.category, p.severity, p.rules, p.version, p.updated_at);
   }
 }
 
@@ -534,7 +552,17 @@ export function updatePolicy(id, updates) {
   const existing = db.prepare('SELECT * FROM policies WHERE id = ?').get(id);
   if (!existing) return null;
 
-  const isEnabled = updates.is_enabled !== undefined ? (updates.is_enabled ? 1 : 0) : existing.is_enabled;
+  let isEnabled = existing.is_enabled;
+  let mode = existing.mode || (existing.is_enabled ? 'ENFORCE' : 'OFF');
+
+  if (updates.mode !== undefined) {
+    mode = updates.mode;
+    isEnabled = updates.mode === 'OFF' ? 0 : 1;
+  } else if (updates.is_enabled !== undefined) {
+    isEnabled = updates.is_enabled ? 1 : 0;
+    mode = isEnabled ? 'ENFORCE' : 'OFF';
+  }
+
   const name = updates.name || existing.name;
   const description = updates.description || existing.description;
   const severity = updates.severity || existing.severity;
@@ -544,9 +572,17 @@ export function updatePolicy(id, updates) {
 
   db.prepare(`
     UPDATE policies 
-    SET name = ?, description = ?, severity = ?, is_enabled = ?, effect = ?, tool = ?, rules = ?, updated_at = ?
+    SET name = ?, description = ?, severity = ?, is_enabled = ?, mode = ?, effect = ?, tool = ?, rules = ?, updated_at = ?
     WHERE id = ?
-  `).run(name, description, severity, isEnabled, effect, tool, rules, now, id);
+  `).run(name, description, severity, isEnabled, mode, effect, tool, rules, now, id);
+
+  try {
+    db.prepare(`
+      UPDATE policy_configs
+      SET mode = ?, rules_json = ?, version = version + 1, updated_at = ?
+      WHERE id = ?
+    `).run(mode, rules, now, id);
+  } catch {}
 
   return getPolicyById(id);
 }
@@ -1024,9 +1060,9 @@ export function getOverviewMetrics() {
 
 export function resetAllDemoData() {
   const db = getDb();
-  db.exec('DELETE FROM runs');
-  db.exec('DELETE FROM incidents');
-  db.exec('DELETE FROM events');
+  try { db.exec('DELETE FROM runs'); } catch {}
+  try { db.exec('DELETE FROM incidents'); } catch {}
+  try { db.exec('DELETE FROM events'); } catch {}
 
   // Clean workspace outbox and output artifacts (preserve .gitkeep)
   try {
@@ -1053,30 +1089,14 @@ export function resetAllDemoData() {
 
 export function resetToSeed() {
   const db = getDb();
-  const tables = [
-    'audit_events',
-    'eval_cases',
-    'findings',
-    'eval_runs',
-    'dataset_cases',
-    'datasets',
-    'models',
-    'policy_decisions',
-    'probe_results',
-    'probe_runs',
-    'config_snapshots',
-    'attestations',
-    'gateway_requests',
-    'advisor_outputs',
-    'security_events',
-    'runs',
-    'incidents',
-    'events',
-    'policies',
-    '_migrations'
-  ];
-  for (const t of tables) {
-    db.exec(`DROP TABLE IF EXISTS ${t}`);
+  db.exec('PRAGMA foreign_keys = OFF');
+  try {
+    const userTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+    for (const t of userTables) {
+      db.exec(`DROP TABLE IF EXISTS "${t.name}"`);
+    }
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON');
   }
   applyMigrations(db);
   initDefaultPolicies(db);

@@ -10,8 +10,6 @@ import {
   getAllDatasets,
   getDatasetById,
   createDataset,
-  getAllPolicies,
-  updatePolicy,
   getAllEvaluations,
   getEvaluationById,
   getAllFindings,
@@ -41,6 +39,14 @@ import {
   updateBulkSettings,
   resetSettings
 } from './settings.mjs';
+import {
+  getAllPolicyConfigs,
+  getPolicyConfigById,
+  updatePolicyConfig,
+  getPolicyHistory,
+  getCriticalGuardrailStatus,
+  testPolicyInteractively
+} from './policies/service.mjs';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -248,22 +254,55 @@ app.post('/api/datasets/upload', async (c) => {
 });
 
 /**
- * Security Policies & Monitoring
+ * Security Policies & Monitoring (Live DB Integration, OFF | MONITOR | ENFORCE)
  */
 app.get('/api/security/policies', (c) => {
-  const policies = getAllPolicies();
+  const policies = getAllPolicyConfigs();
   return c.json({ policies, total: policies.length });
+});
+
+app.get('/api/security/policies/:id', (c) => {
+  try {
+    const id = c.req.param('id');
+    const policy = getPolicyConfigById(id);
+    return c.json(policy);
+  } catch (err) {
+    return c.json({ error: err.message }, err.statusCode || 404);
+  }
 });
 
 app.patch('/api/security/policies/:id', async (c) => {
   try {
     const id = c.req.param('id');
     const body = await c.req.json();
-    const updated = updatePolicy(id, body);
-    if (!updated) return c.json({ error: 'Policy not found' }, 404);
+    const updated = await updatePolicyConfig(id, body);
     return c.json(updated);
   } catch (err) {
-    return c.json({ error: err.message }, 500);
+    return c.json({ error: err.message }, err.statusCode || 400);
+  }
+});
+
+app.get('/api/security/policies/:id/history', (c) => {
+  const id = c.req.param('id');
+  const history = getPolicyHistory(id);
+  return c.json({ history, total: history.length });
+});
+
+app.get('/api/security/critical-status', (c) => {
+  const status = getCriticalGuardrailStatus();
+  return c.json(status);
+});
+
+app.post('/api/security/policies/test', async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!body.policyId) {
+      return c.json({ error: 'policyId is required' }, 400);
+    }
+    const testResult = testPolicyInteractively(body);
+    return c.json(testResult);
+  } catch (err) {
+    return c.json({ error: err.message }, err.statusCode || 400);
   }
 });
 

@@ -9,6 +9,7 @@ import {
   evaluatePol004,
   evaluatePol005
 } from './policies/engine.mjs';
+import { getAllPolicyConfigs } from './policies/service.mjs';
 import { getDb, appendAuditEvent } from './db.mjs';
 
 export const proxyRouter = new Hono();
@@ -75,36 +76,66 @@ proxyRouter.post('/chat/completions', async (c) => {
   const promptHash = sha256(prompt);
   const modelId = body.model || 'ollama-llama3.2';
 
-  // 2. Input Security Policy Checks
-  const inputPol001 = evaluatePol001(prompt);
-  const inputPol002 = evaluatePol002(prompt);
+  // 2. Fetch live policy configs from DB (cached with 5s TTL)
+  const policyConfigs = getAllPolicyConfigs();
+  const getMode = (id) => policyConfigs.find(p => p.id === id)?.mode || 'ENFORCE';
 
-  if (inputPol002.violated) {
-    // Record rejection
-    const decisionId = `dec_${crypto.randomBytes(6).toString('hex')}`;
-    const db = getDb();
-    db.prepare(`
-      INSERT INTO policy_decisions (id, policy_id, model_id, decision, verdict, input_hash, output_hash, matched_rules, latency_ms, is_synthetic, created_at)
-      VALUES (?, 'POL-002', ?, 'DENY', 'Failed', ?, '0000000000000000', ?, ?, 0, datetime('now'))
-    `).run(decisionId, modelId, promptHash, JSON.stringify(inputPol002.matchedPatterns), Date.now() - startTime);
+  const modePol002 = getMode('POL-002');
+  if (modePol002 !== 'OFF') {
+    const inputPol002 = evaluatePol002(prompt);
+    if (inputPol002.violated) {
+      const decisionId = `dec_${crypto.randomBytes(6).toString('hex')}`;
+      const db = getDb();
 
-    appendAuditEvent({
-      eventType: 'GATEWAY_INPUT_POLICY_DENIED',
-      resource: 'v1/chat/completions',
-      decision: 'DENY',
-      canonicalPayload: { requestId, modelId, reason: 'Adversarial instruction injection detected in input prompt.' }
-    });
+      if (modePol002 === 'ENFORCE') {
+        // Record blocked rejection in policy_decisions and security_events
+        db.prepare(`
+          INSERT INTO policy_decisions (id, policy_id, model_id, decision, verdict, input_hash, output_hash, matched_rules, latency_ms, is_synthetic, created_at)
+          VALUES (?, 'POL-002', ?, 'DENY', 'Failed', ?, '0000000000000000', ?, ?, 0, datetime('now'))
+        `).run(decisionId, modelId, promptHash, JSON.stringify(inputPol002.matchedPatterns), Date.now() - startTime);
 
-    return c.json(
-      {
-        error: {
-          message: 'Request denied by SentinelFlow input gate: Prompt injection or instruction override detected.',
-          type: 'policy_violation_error',
-          code: 'POL_002_VIOLATION'
-        }
-      },
-      400
-    );
+        db.prepare(`
+          INSERT INTO security_events (id, timestamp, category, severity, description, blocked, target)
+          VALUES (?, datetime('now'), 'Prompt Injection', 'Critical', 'Adversarial instruction injection intercepted at gateway input', 1, 'gateway_input')
+        `).run(`evt_${crypto.randomBytes(6).toString('hex')}`);
+
+        appendAuditEvent({
+          eventType: 'GATEWAY_INPUT_POLICY_DENIED',
+          resource: 'v1/chat/completions',
+          decision: 'DENY',
+          canonicalPayload: { requestId, modelId, reason: 'Adversarial instruction injection detected in input prompt.' }
+        });
+
+        return c.json(
+          {
+            error: {
+              message: 'Request denied by SentinelFlow input gate: Prompt injection or instruction override detected.',
+              type: 'policy_violation_error',
+              code: 'POL_002_VIOLATION'
+            }
+          },
+          400
+        );
+      } else if (modePol002 === 'MONITOR') {
+        // Log in MONITOR mode (blocked = 0) and allow request to proceed
+        db.prepare(`
+          INSERT INTO policy_decisions (id, policy_id, model_id, decision, verdict, input_hash, output_hash, matched_rules, latency_ms, is_synthetic, created_at)
+          VALUES (?, 'POL-002', ?, 'MONITOR', 'Warning', ?, '0000000000000000', ?, ?, 0, datetime('now'))
+        `).run(decisionId, modelId, promptHash, JSON.stringify(inputPol002.matchedPatterns), Date.now() - startTime);
+
+        db.prepare(`
+          INSERT INTO security_events (id, timestamp, category, severity, description, blocked, target)
+          VALUES (?, datetime('now'), 'Prompt Injection', 'Medium', '[MONITOR MODE] Adversarial instruction injection detected (unblocked)', 0, 'gateway_input')
+        `).run(`evt_${crypto.randomBytes(6).toString('hex')}`);
+
+        appendAuditEvent({
+          eventType: 'GATEWAY_INPUT_POLICY_MONITORED',
+          resource: 'v1/chat/completions',
+          decision: 'ALLOW',
+          canonicalPayload: { requestId, modelId, warning: 'Prompt injection observed under MONITOR mode.' }
+        });
+      }
+    }
   }
 
   // 3. Model Adapter Execution
@@ -139,29 +170,38 @@ proxyRouter.post('/chat/completions', async (c) => {
   const responseHash = sha256(responseText);
   const latencyMs = modelResult.latencyMs || (Date.now() - startTime);
 
-  // 4. Output Policy Checks
-  const outPol001 = evaluatePol001(responseText);
-  const outPol004 = evaluatePol004(responseText);
-  const outPol005 = evaluatePol005(responseText);
-  const outPol003 = evaluatePol003(modelResult.toolCalls || []);
+  // 4. Output Policy Checks (Observing OFF | MONITOR | ENFORCE)
+  const mode001 = getMode('POL-001');
+  const mode003 = getMode('POL-003');
+  const mode004 = getMode('POL-004');
+  const mode005 = getMode('POL-005');
+
+  const outPol001 = mode001 !== 'OFF' ? evaluatePol001(responseText) : { violated: false, matches: [], redactedText: responseText };
+  const outPol003 = mode003 !== 'OFF' ? evaluatePol003(modelResult.toolCalls || []) : { violated: false, violations: [] };
+  const outPol004 = mode004 !== 'OFF' ? evaluatePol004(responseText) : { violated: false, matchedTerms: [], score: 0 };
+  const outPol005 = mode005 !== 'OFF' ? evaluatePol005(responseText) : { violated: false, reasons: [] };
 
   let finalResponseText = responseText;
   let finalVerdict = 'Passed';
   let primaryPolicyViolated = null;
 
   if (outPol001.violated) {
-    finalVerdict = 'Failed';
     primaryPolicyViolated = 'POL-001';
-    finalResponseText = outPol001.redactedText; // Redact sensitive keys
+    if (mode001 === 'ENFORCE') {
+      finalVerdict = 'Failed';
+      finalResponseText = outPol001.redactedText; // Redact sensitive keys
+    } else {
+      finalVerdict = 'Warning';
+    }
   } else if (outPol003.violated) {
-    finalVerdict = 'Failed';
     primaryPolicyViolated = 'POL-003';
+    finalVerdict = mode003 === 'ENFORCE' ? 'Failed' : 'Warning';
   } else if (outPol004.violated) {
-    finalVerdict = 'Warning';
     primaryPolicyViolated = 'POL-004';
-  } else if (outPol005.violated) {
     finalVerdict = 'Warning';
+  } else if (outPol005.violated) {
     primaryPolicyViolated = 'POL-005';
+    finalVerdict = 'Warning';
   }
 
   // 5. Persist Policy Decision
