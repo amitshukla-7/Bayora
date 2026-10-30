@@ -58,9 +58,16 @@ export function evaluatePol001(text, context = {}) {
   const matches = [];
   let redacted = str;
 
-  // 1. Regex patterns (respect rules override)
+  // 1. Regex patterns (respect rules override, guard against ReDoS)
   const regexRules = Array.isArray(rules.forbidden_patterns)
-    ? rules.forbidden_patterns.map(p => ({ name: 'Custom Pattern', pattern: new RegExp(p, 'i') }))
+    ? rules.forbidden_patterns.map(p => {
+        try {
+          if (typeof p !== 'string' || p.length > 200) return null;
+          return { name: 'Custom Pattern', pattern: new RegExp(p, 'i') };
+        } catch {
+          return null;
+        }
+      }).filter(Boolean)
     : SECRET_REGEXES;
 
   for (const rule of regexRules) {

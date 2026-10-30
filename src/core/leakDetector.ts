@@ -66,7 +66,8 @@ export function detectCanaryLeak(response: string, canaryToken: string): CanaryL
   const maskedToken = tokenLen > 6
     ? canaryToken.slice(0, 3) + '****' + canaryToken.slice(-2)
     : '****';
-  const redactedExcerpt = rawExcerpt.replace(new RegExp(canaryToken, 'gi'), `[REDACTED_CANARY:${maskedToken}]`);
+  const escapedCanary = canaryToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const redactedExcerpt = rawExcerpt.replace(new RegExp(escapedCanary, 'gi'), `[REDACTED_CANARY:${maskedToken}]`);
 
   return {
     leaked: true,
