@@ -1,0 +1,67 @@
+name: Security Pipeline & CI Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1' # Weekly security audit run
+
+permissions:
+  contents: read
+
+jobs:
+  audit-and-verify:
+    name: Security & Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Gitleaks Secret Scanning
+        uses: gitleaks/gitleaks-action@f91f76261546b5281534f3c75fe9c1d09e53b6b3 # v2.3.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Initialize CodeQL Static Analysis
+        uses: github/codeql-action/init@4355270be196e4143b27eb95edd663c793f4ac10 # v3.24.9
+        with:
+          languages: javascript-typescript
+
+      - name: Install Pinned Dependencies (Clean Install)
+        run: npm ci
+
+      - name: Supply Chain Dependency Audit
+        run: npm audit --audit-level=high
+
+      - name: Static Lint Analysis (Oxlint)
+        run: npm run lint
+
+      - name: Static Type Check (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Client Production Build Verification
+        run: npm run build
+
+      - name: Security & Grader Test Suite
+        run: npm test
+
+      - name: Offline Evidence Bundle Verifier Verification
+        run: npm run verify -- examples/valid.bundle.json
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@4355270be196e4143b27eb95edd663c793f4ac10 # v3.24.9
