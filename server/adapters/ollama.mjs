@@ -9,7 +9,7 @@ export class OllamaAdapter extends BaseModelAdapter {
     super({
       ...config,
       provider: 'ollama',
-      baseUrl: config.baseUrl || config.base_url || 'http://localhost:11434',
+      baseUrl: process.env.OLLAMA_HOST || config.baseUrl || config.base_url || 'http://localhost:11434',
       modelIdentifier: config.modelIdentifier || config.model_identifier || 'smollm:135m'
     });
   }
