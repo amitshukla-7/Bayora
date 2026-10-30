@@ -14,17 +14,19 @@ import {
 
 export const GGUF_MAGIC = Buffer.from([0x47, 0x47, 0x55, 0x46]); // "GGUF"
 
+const stripControlChars = (val) => typeof val === 'string' ? val.replace(/[\x00-\x1F\x7F]/g, '').trim() : val;
+
 export const CreateModelSchema = z.object({
-  name: z.string().min(1, 'Model name is required'),
-  provider: z.string().min(1, 'Provider is required'),
-  identifier: z.string().min(1, 'Identifier is required'),
-  version: z.string().default('1.0.0'),
-  description: z.string().optional().default(''),
-  model_type: z.string().optional().default('Instruct LLM'),
+  name: z.string().min(1, 'Model name is required').max(100).transform(stripControlChars),
+  provider: z.string().min(1, 'Provider is required').max(50).transform(stripControlChars),
+  identifier: z.string().min(1, 'Identifier is required').max(200).transform(stripControlChars),
+  version: z.string().max(50).default('1.0.0').transform(stripControlChars),
+  description: z.string().max(1000).optional().default('').transform(stripControlChars),
+  model_type: z.string().max(100).optional().default('Instruct LLM').transform(stripControlChars),
   execution_mode: z.enum(['Live', 'Ollama', 'OpenAI-Compatible', 'Simulation', 'Mock API']).default('Live'),
-  endpoint: z.string().optional(),
-  base_url: z.string().optional(),
-  api_key_env: z.string().optional()
+  endpoint: z.string().max(1000).optional(),
+  base_url: z.string().max(1000).optional(),
+  api_key_env: z.string().max(100).optional()
 });
 
 export const UpdateModelSchema = CreateModelSchema.partial().extend({
