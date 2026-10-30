@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm run server\" \"vite\"",
+    "start": "node --experimental-strip-types server/index.mjs",
     "server": "node --experimental-strip-types server/index.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

@@ -11,6 +11,16 @@ models:
       max_tokens: 128
     description: "Real local Ollama model (SmolLM 135M). Fast, real, verified local CPU execution."
 
+  - id: "groq-llama3"
+    name: "Llama 3.3 70B (Groq Cloud - Free)"
+    provider: "openai-compatible"
+    model_identifier: "llama-3.3-70b-versatile"
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+    parameters:
+      temperature: 0.0
+    description: "Free cloud inference via Groq Cloud (ultra-fast LLaMA 3.3 70B, zero cloud hosting costs)."
+
   - id: "ollama-llama3.2"
     name: "Llama 3.2 3B (Local Ollama)"
     provider: "ollama"

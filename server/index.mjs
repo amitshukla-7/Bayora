@@ -1,6 +1,9 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import {
   getDb,
   getAllDatasets,
@@ -99,8 +102,13 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Root API Status Landing Page
+// Root API Status Landing Page (or UI when requested by browser)
 app.get('/', (c) => {
+  const acceptsHtml = (c.req.header('accept') || '').includes('text/html');
+  const distIndex = path.resolve(process.cwd(), 'dist', 'index.html');
+  if (acceptsHtml && fs.existsSync(distIndex)) {
+    return c.html(fs.readFileSync(distIndex, 'utf8'));
+  }
   return c.json({
     name: 'Bayora Intelligence Center (SentinelFlow) API',
     version: '2.0.0',
@@ -690,6 +698,15 @@ app.post('/api/admin/reset', (c) => {
   const res = resetToSeed();
   return c.json(res);
 });
+
+/**
+ * Production Static Frontend Serving
+ */
+const distDir = path.resolve(process.cwd(), 'dist');
+if (fs.existsSync(distDir)) {
+  app.use('/*', serveStatic({ root: './dist' }));
+  app.get('*', serveStatic({ path: './dist/index.html' }));
+}
 
 export { app };
 
