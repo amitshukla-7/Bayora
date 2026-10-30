@@ -109,7 +109,9 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
 
   const handleDownloadReport = (format: 'json' | 'csv') => {
     if (!selectedEvalId) return;
-    window.open(`/api/evaluations/${selectedEvalId}/export?format=${format}`, '_blank');
+    const safeId = encodeURIComponent(selectedEvalId);
+    const safeFormat = encodeURIComponent(format);
+    window.open(`/api/evaluations/${safeId}/export?format=${safeFormat}`, '_blank', 'noopener,noreferrer');
   };
 
   const allCategories = ['All', 'Jailbreak', 'Prompt Injection', 'Sensitive Data Leakage', 'Toxicity', 'Hallucination', 'Data Exfiltration', 'Bias & Fairness', 'Compliance Drift'];
