@@ -9,27 +9,10 @@ import { getDb } from '../db.mjs';
 export function getUserProfile(userId = 'user_amit_shukla') {
   const db = getDb();
   let row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get(userId);
-
   if (!row) {
-    // Check if user exists in users table
-    const u = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    if (u) {
-      db.prepare(`
-        INSERT INTO user_profile (id, name, role, email, avatar_initials, organization, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `).run(u.id, u.name, u.role, u.email, u.avatar_initials, u.organization);
-      row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get(userId);
-    } else {
-      // Default to primary profile
-      row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('user_amit_shukla');
-      if (!row) {
-        db.prepare(`
-          INSERT INTO user_profile (id, name, role, email, avatar_initials, organization)
-          VALUES ('user_amit_shukla', 'Amit Shukla', 'Principal Architect', 'amitshukla@1234', 'AS', 'Bayora Technologies')
-        `).run();
-        row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('user_amit_shukla');
-      }
-    }
+    const u = db.prepare('SELECT id, email, name, role, organization, avatar_initials, updated_at FROM users WHERE id = ?').get(userId);
+    if (u) return u;
+    row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('current_user');
   }
   return row;
 }

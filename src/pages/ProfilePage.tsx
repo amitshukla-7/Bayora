@@ -20,12 +20,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onProfileUpdate
 }) => {
   const profile = currentUser || {
-    id: 'user_amit_shukla',
-    name: 'Amit Shukla',
-    role: 'Principal Architect',
-    email: 'amitshukla@1234',
-    avatar_initials: 'AS',
-    organization: 'Bayora Technologies'
+    id: '',
+    name: 'Operator',
+    role: 'Security Engineer',
+    email: '',
+    avatar_initials: 'OP',
+    organization: 'Enterprise Workspace'
   };
 
   const [name, setName] = useState(profile.name);

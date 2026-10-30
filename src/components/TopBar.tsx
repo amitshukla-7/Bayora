@@ -64,14 +64,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     } catch {}
   };
 
-  const user = currentUser || {
-    id: 'user_amit_shukla',
-    name: 'Amit Shukla',
-    role: 'Principal Architect',
-    email: 'amitshukla@1234',
-    avatar_initials: 'AS',
-    organization: 'Bayora Technologies'
-  };
+  const user = currentUser;
 
   return (
     <header className="h-16 px-6 bg-white/70 backdrop-blur-md border-b border-slate-200/70 flex items-center justify-between shrink-0 z-10">
@@ -170,25 +163,35 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* User Identity Menu */}
         <div className="relative">
-          <button
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setShowNotifications(false);
-            }}
-            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-100/70 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#9B7DE8] to-[#C4B5FD] text-white font-semibold text-xs flex items-center justify-center shadow-xs">
-              {user.avatar_initials || 'AS'}
-            </div>
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-800">{user.name}</span>
-              <span className="text-[10px] text-slate-400 font-mono">{user.email}</span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
-          </button>
+          {user ? (
+            <button
+              onClick={() => {
+                setShowUserMenu(!showUserMenu);
+                setShowNotifications(false);
+              }}
+              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-100/70 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#9B7DE8] to-[#C4B5FD] text-white font-semibold text-xs flex items-center justify-center shadow-xs">
+                {user.avatar_initials || 'AS'}
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-semibold text-slate-800">{user.name}</span>
+                <span className="text-[10px] text-slate-400 font-mono">{user.email}</span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              className="bayora-btn-primary px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* User Profile Dropdown Menu */}
-          {showUserMenu && (
+          {showUserMenu && user && (
             <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 px-2 z-50 animate-in fade-in">
               <div className="p-3 border-b border-slate-100 mb-1">
                 <div className="font-bold text-xs text-slate-900">{user.name}</div>

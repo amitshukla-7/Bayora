@@ -158,19 +158,16 @@ app.use('/api/*', async (c, next) => {
     }
   }
 
-  let user = null;
+  let authenticatedUser = null;
   if (token) {
-    user = getUserFromSession(token);
+    authenticatedUser = getUserFromSession(token);
   }
 
-  // Graceful fallback to primary operator identity ('user_amit_shukla')
-  // Guarantees zero regressions for unauthenticated CLI verifiers, tests, and demo checks
-  if (!user) {
-    user = getUserById('user_amit_shukla');
-  }
-
-  c.set('user', user);
-  c.set('userId', user?.id || 'user_amit_shukla');
+  // Set authenticated user only if a valid session token was provided
+  c.set('user', authenticatedUser);
+  c.set('sessionUser', authenticatedUser);
+  // Default userId to 'user_amit_shukla' only for unauthenticated background data queries/tests
+  c.set('userId', authenticatedUser?.id || 'user_amit_shukla');
   await next();
 });
 
@@ -604,7 +601,11 @@ app.get('/api/evaluations/:id', (c) => {
  * User Profile & Notifications (Persistent SQLite Identity)
  */
 app.get('/api/user/profile', (c) => {
-  return c.json(getUserProfile(c.get('userId')));
+  const user = c.get('user');
+  if (!user) {
+    return c.json({ error: 'Unauthenticated' }, 401);
+  }
+  return c.json(getUserProfile(user.id));
 });
 
 app.patch('/api/user/profile', async (c) => {

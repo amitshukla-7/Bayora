@@ -101,8 +101,14 @@ export async function logoutApi(): Promise<{ success: boolean }> {
 }
 
 export async function fetchCurrentUserApi(): Promise<UserProfile | null> {
+  const token = getAuthToken();
+  if (!token) return null;
   try {
     const res = await authFetch(`${API_BASE}/auth/me`);
+    if (!res.ok) {
+      setAuthToken(null);
+      return null;
+    }
     const data = await handleResponse<{ user: UserProfile }>(res);
     return data.user;
   } catch {

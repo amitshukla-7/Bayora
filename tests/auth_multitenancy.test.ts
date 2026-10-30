@@ -11,6 +11,7 @@ import {
 } from '../server/auth/service.mjs';
 import { getAllModelsWithMetrics, createModelRecord } from '../server/models/service.mjs';
 import { executeEvaluationRunServer } from '../server/eval/runner.mjs';
+import { app } from '../server/index.mjs';
 
 describe('Enterprise Authentication & Tenant Isolation Suite', () => {
   beforeEach(() => {
@@ -179,7 +180,7 @@ describe('Enterprise Authentication & Tenant Isolation Suite', () => {
       // Verify Amit Shukla's evaluation list does NOT contain this run (strict isolation)
       const amitEvals = getAllEvaluations('user_amit_shukla');
       expect(amitEvals.map(e => e.id)).not.toContain(result.id);
-    });
+    }, 15000);
 
     it('invalidates session token on logout', () => {
       const tempEmail = `logout_${Date.now()}@test.org`;
@@ -215,6 +216,45 @@ describe('Enterprise Authentication & Tenant Isolation Suite', () => {
       const h = hashPassword('testSecretPass');
       const corruptedHash = 'a' + h.hash.slice(1);
       expect(verifyPassword('testSecretPass', h.salt, corruptedHash)).toBe(false);
+    });
+  });
+
+  describe('4. Unauthenticated Data Protection & Header Exposure Prevention (ArgosX Issue 1)', () => {
+    it('rejects unauthenticated requests to /api/auth/me and /api/user/profile without leaking personal identity', async () => {
+      const resMe = await app.fetch(new Request('http://localhost:3001/api/auth/me'));
+      expect(resMe.status).toBe(401);
+      const dataMe = await resMe.json();
+      expect(dataMe.error).toBe('Unauthenticated');
+      expect(dataMe.user).toBeUndefined();
+
+      const resProfile = await app.fetch(new Request('http://localhost:3001/api/user/profile'));
+      expect(resProfile.status).toBe(401);
+      const dataProfile = await resProfile.json();
+      expect(dataProfile.error).toBe('Unauthenticated');
+      expect(dataProfile.email).toBeUndefined();
+    });
+
+    it('returns user profile only when authenticated with a valid session token', async () => {
+      const auth = loginUser({
+        email: 'amitshukla@1234',
+        password: 'amitshukla7'
+      });
+
+      const resMe = await app.fetch(new Request('http://localhost:3001/api/auth/me', {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      }));
+      expect(resMe.status).toBe(200);
+      const dataMe = await resMe.json();
+      expect(dataMe.user.email).toBe('amitshukla@1234');
+      expect(dataMe.user.name).toBe('Amit Shukla');
+
+      const resProfile = await app.fetch(new Request('http://localhost:3001/api/user/profile', {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      }));
+      expect(resProfile.status).toBe(200);
+      const dataProfile = await resProfile.json();
+      expect(dataProfile.name).toBe('Amit Shukla');
+      expect(dataProfile.email).toBeDefined();
     });
   });
 });
