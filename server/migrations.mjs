@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 /**
  * Bayora Intelligence Center — Versioned Database Migrations
  * Pure SQLite schema migrations with strict trigger enforcement.
@@ -808,6 +810,92 @@ export const MIGRATIONS = [
       for (const c of canonicalCases) {
         insertCase.run(c.id, c.category, c.prompt, c.expected_behavior, c.severity);
       }
+    }
+  },
+  {
+    version: 9,
+    name: '009_auth_and_user_profiles',
+    up(db) {
+      // 1. Users table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          salt TEXT NOT NULL,
+          name TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'Principal Architect',
+          organization TEXT NOT NULL DEFAULT 'Bayora Technologies',
+          avatar_initials TEXT NOT NULL DEFAULT 'AS',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      // 2. Sessions table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          ip TEXT,
+          user_agent TEXT
+        );
+      `);
+
+      // 3. User scoping columns on data tables
+      const addCol = (table, col, def) => {
+        try {
+          db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def};`);
+        } catch {}
+      };
+
+      addCol('models', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+      addCol('eval_runs', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+      addCol('evaluations', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+      addCol('eval_cases', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+      addCol('findings', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+      addCol('notifications', 'user_id', "TEXT DEFAULT 'user_amit_shukla'");
+
+      // Ensure any existing rows have user_id = 'user_amit_shukla'
+      try { db.exec("UPDATE models SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+      try { db.exec("UPDATE eval_runs SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+      try { db.exec("UPDATE evaluations SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+      try { db.exec("UPDATE eval_cases SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+      try { db.exec("UPDATE findings SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+      try { db.exec("UPDATE notifications SET user_id = 'user_amit_shukla' WHERE user_id IS NULL"); } catch {}
+
+      // 4. Seed primary user: amitshukla@1234 / amitshukla7
+      const salt = crypto.randomBytes(16).toString('hex');
+      const passwordHash = crypto.scryptSync('amitshukla7', salt, 64).toString('hex');
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, salt, name, role, organization, avatar_initials, created_at, updated_at)
+        VALUES ('user_amit_shukla', 'amitshukla@1234', ?, ?, 'Amit Shukla', 'Principal Architect', 'Bayora Technologies', 'AS', ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          email = 'amitshukla@1234',
+          password_hash = excluded.password_hash,
+          salt = excluded.salt,
+          name = 'Amit Shukla',
+          role = 'Principal Architect',
+          organization = 'Bayora Technologies',
+          avatar_initials = 'AS',
+          updated_at = excluded.updated_at
+      `).run(passwordHash, salt, now, now);
+
+      db.prepare(`
+        INSERT INTO user_profile (id, name, role, email, avatar_initials, organization, updated_at)
+        VALUES ('user_amit_shukla', 'Amit Shukla', 'Principal Architect', 'amitshukla@1234', 'AS', 'Bayora Technologies', ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = 'Amit Shukla',
+          role = 'Principal Architect',
+          email = 'amitshukla@1234',
+          avatar_initials = 'AS',
+          organization = 'Bayora Technologies',
+          updated_at = excluded.updated_at
+      `).run(now);
     }
   }
 ];

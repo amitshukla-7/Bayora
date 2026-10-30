@@ -405,7 +405,8 @@ export async function executeEvaluationRunServer({
   datasetId = 'ds_standard_safety_v1',
   categories = OFFICIAL_CATEGORIES,
   executionSettings = {},
-  onProgress = null
+  onProgress = null,
+  userId = 'user_amit_shukla'
 }) {
   const db = getDb();
   const runHash = crypto.randomBytes(4).toString('hex');
@@ -469,8 +470,8 @@ export async function executeEvaluationRunServer({
     INSERT INTO evaluations (
       id, name, preset_scenario, status, models, categories, total_cases, cases_done,
       passed_count, warning_count, failed_count, risk_score, execution_duration_ms,
-      estimated_duration, execution_settings, is_synthetic, created_at
-    ) VALUES (?, ?, ?, 'RUNNING', ?, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?, 0, ?)
+      estimated_duration, execution_settings, is_synthetic, created_at, user_id
+    ) VALUES (?, ?, ?, 'RUNNING', ?, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?, 0, ?, ?)
   `).run(
     evalId,
     name || `${presetScenario} Run - ${new Date().toLocaleDateString()}`,
@@ -480,7 +481,8 @@ export async function executeEvaluationRunServer({
     totalCasesCount,
     `${Math.ceil(totalCasesCount * 1.5)}s`,
     JSON.stringify(executionSettings),
-    now
+    now,
+    userId
   );
 
   const primaryModel = modelEntries[0]?.record;
@@ -489,8 +491,8 @@ export async function executeEvaluationRunServer({
       id, name, dataset_id, model_id, model_identifier, status, total_cases, cases_total,
       cases_done, cases_errored, samples_done, passed_count, warning_count, failed_count,
       execution_duration_ms, seed, temperature, concurrency, started_at, config_snapshot,
-      is_synthetic, created_at
-    ) VALUES (?, ?, ?, ?, ?, 'RUNNING', ?, ?, 0, 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, ?, 0, ?)
+      is_synthetic, created_at, user_id
+    ) VALUES (?, ?, ?, ?, ?, 'RUNNING', ?, ?, 0, 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, ?, 0, ?, ?)
   `).run(
     evalId,
     name || `${presetScenario} Run`,
@@ -504,7 +506,8 @@ export async function executeEvaluationRunServer({
     executionSettings.concurrency || 4,
     now,
     JSON.stringify(configSnapshot),
-    now
+    now,
+    userId
   );
 
   let passedCount = 0;
@@ -519,8 +522,8 @@ export async function executeEvaluationRunServer({
     INSERT INTO findings (
       id, eval_case_id, run_id, evaluation_id, model_id, model_name, category, severity, status,
       test_case_prompt, observed_response, expected_behavior, explanation,
-      policy_violated, risk_score, evidence, mitigation, is_synthetic, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      policy_violated, risk_score, evidence, mitigation, is_synthetic, created_at, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `);
 
   let findingCounter = 1;
@@ -649,7 +652,8 @@ export async function executeEvaluationRunServer({
           mitigation: evalOutcome.mitigation,
           seed: executionSettings.seed ?? 42,
           temperature: executionSettings.temperature ?? 0.0,
-          is_synthetic: 0
+          is_synthetic: 0,
+          user_id: userId
         });
 
         // Findings: record only genuine policy breaches/warnings (NOT execution errors or passes)
@@ -673,7 +677,8 @@ export async function executeEvaluationRunServer({
             evalOutcome.riskScore,
             evalOutcome.evidence,
             evalOutcome.mitigation,
-            now
+            now,
+            userId
           );
 
           createdFindings.push({
@@ -737,7 +742,8 @@ export async function executeEvaluationRunServer({
       title: 'Evaluation Completed',
       message: `Evaluation "${name || presetScenario}" finished with ${passedCount} passed, ${warningCount} warnings, ${failedCount} failures, ${erroredCount} errors.`,
       type: failedCount > 0 ? 'warning' : 'success',
-      link: `/evaluations?evalId=${evalId}`
+      link: `/evaluations?evalId=${evalId}`,
+      userId
     });
 
     const finalResult = {

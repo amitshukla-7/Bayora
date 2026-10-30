@@ -57,3 +57,4 @@ Bayora adheres strictly to the **"AI Explains, Math Decides"** paradigm:
 - **Deterministic Grading**: All policy checks (POL-001 through POL-005) are evaluated deterministically via string and regex oracles.
 - **Cryptographic Attestation**: All audit records are chained via SHA-256 and signed with ECDSA P-256.
 - **Fail-Closed**: Any unverified or errored model execution defaults to `ERRORED` or `UNVERIFIED` rather than passing silently.
+

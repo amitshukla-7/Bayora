@@ -6,46 +6,38 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  Info
+  Info,
+  User,
+  LogOut,
+  Key,
+  ChevronDown
 } from 'lucide-react';
 import type { PageId, NotificationItem, UserProfile } from '../types';
 import {
-  fetchUserProfile,
   fetchNotifications,
   markNotificationsReadApi
 } from '../services/api';
 
 interface TopBarProps {
   activePage?: PageId;
+  currentUser?: UserProfile | null;
   onOpenCommandPalette: () => void;
   onSelectPage: (page: PageId) => void;
+  onOpenAuthModal: () => void;
+  onLogout: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
+  currentUser,
   onOpenCommandPalette,
   onSelectPage,
+  onOpenAuthModal,
+  onLogout
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-
-  const loadProfile = async () => {
-    try {
-      const data = await fetchUserProfile();
-      setProfile(data);
-    } catch {
-      // Fallback
-      setProfile({
-        id: 'current_user',
-        name: 'Operator',
-        role: 'Security Engineer',
-        email: 'operator@bayora.internal',
-        avatar_initials: 'OP',
-        organization: 'Bayora Platform'
-      });
-    }
-  };
 
   const loadNotifications = async () => {
     try {
@@ -59,7 +51,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   useEffect(() => {
-    loadProfile();
     loadNotifications();
     const interval = setInterval(loadNotifications, 10000);
     return () => clearInterval(interval);
@@ -71,6 +62,15 @@ export const TopBar: React.FC<TopBarProps> = ({
       setNotifications(res.notifications || []);
       setUnreadCount(0);
     } catch {}
+  };
+
+  const user = currentUser || {
+    id: 'user_amit_shukla',
+    name: 'Amit Shukla',
+    role: 'Principal Architect',
+    email: 'amitshukla@1234',
+    avatar_initials: 'AS',
+    organization: 'Bayora Technologies'
   };
 
   return (
@@ -93,12 +93,12 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-
         {/* Notifications Popover Trigger */}
         <div className="relative">
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
+              setShowUserMenu(false);
               loadNotifications();
             }}
             className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition-colors relative cursor-pointer"
@@ -114,7 +114,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-84 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 px-4 z-50">
+            <div className="absolute right-0 mt-2 w-84 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 px-4 z-50 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-800">Notifications</span>
@@ -168,19 +168,73 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
         </div>
 
-        {/* User Avatar */}
-        <button
-          onClick={() => onSelectPage('profile')}
-          className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-100/70 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#9B7DE8] to-[#C4B5FD] text-white font-semibold text-xs flex items-center justify-center shadow-xs">
-            {profile?.avatar_initials || 'OP'}
-          </div>
-          <div className="hidden sm:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-800">{profile?.name || 'Operator'}</span>
-            <span className="text-[10px] text-slate-400">{profile?.role || 'Principal Architect'}</span>
-          </div>
-        </button>
+        {/* User Identity Menu */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowUserMenu(!showUserMenu);
+              setShowNotifications(false);
+            }}
+            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-100/70 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#9B7DE8] to-[#C4B5FD] text-white font-semibold text-xs flex items-center justify-center shadow-xs">
+              {user.avatar_initials || 'AS'}
+            </div>
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-800">{user.name}</span>
+              <span className="text-[10px] text-slate-400 font-mono">{user.email}</span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+          </button>
+
+          {/* User Profile Dropdown Menu */}
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 px-2 z-50 animate-in fade-in">
+              <div className="p-3 border-b border-slate-100 mb-1">
+                <div className="font-bold text-xs text-slate-900">{user.name}</div>
+                <div className="text-[11px] font-mono text-[#8762E0]">{user.email}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{user.role} · {user.organization}</div>
+              </div>
+
+              <div className="space-y-0.5 text-xs">
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onSelectPage('profile');
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-purple-50 hover:text-[#8762E0] transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Profile & Workspace</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onOpenAuthModal();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-purple-50 hover:text-[#8762E0] transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Switch Account / Sign In</span>
+                </button>
+
+                <div className="border-t border-slate-100 my-1 pt-1">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onLogout();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -230,3 +230,4 @@ A core architectural tenet of Bayora is mathematical determinism under RFC 8785 
    - Designated security contact: `security@bayora.internal`.
 4. **Continuous SAST & SCA Validation**:
    - GitHub Actions workflow runs `npm audit --audit-level=high`, TypeScript typechecks, linting, and full test suite on every pull request to `main`.
+

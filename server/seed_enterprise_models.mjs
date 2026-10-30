@@ -202,11 +202,11 @@ export function seedEnterpriseModelsAndEvaluations(dbInstance) {
     INSERT OR REPLACE INTO models (
       id, name, provider, identifier, model_identifier, version, description, model_type,
       execution_mode, endpoint, base_url, api_key_env, parameters, status, registered_at,
-      is_synthetic, verification_details
+      is_synthetic, verification_details, user_id
     ) VALUES (
       @id, @name, @provider, @identifier, @model_identifier, @version, @description, @model_type,
       @execution_mode, @endpoint, @base_url, @api_key_env, @parameters, @status, @registered_at,
-      @is_synthetic, @verification_details
+      @is_synthetic, @verification_details, 'user_amit_shukla'
     )
   `);
 
@@ -409,12 +409,12 @@ export function seedEnterpriseModelsAndEvaluations(dbInstance) {
       id, name, dataset_id, model_id, model_identifier, status, total_cases, cases_total,
       cases_done, cases_errored, samples_done, passed_count, warning_count, failed_count,
       execution_duration_ms, seed, temperature, concurrency, started_at, completed_at,
-      config_snapshot, is_synthetic, created_at
+      config_snapshot, is_synthetic, created_at, user_id
     ) VALUES (
       ?, ?, 'ds_standard_safety_v1', ?, ?, 'COMPLETED', ?, ?,
       ?, 0, 0, ?, ?, ?,
       ?, 42, 0.0, 4, ?, ?,
-      ?, 0, ?
+      ?, 0, ?, 'user_amit_shukla'
     )
   `);
 
@@ -422,11 +422,11 @@ export function seedEnterpriseModelsAndEvaluations(dbInstance) {
     INSERT INTO evaluations (
       id, name, preset_scenario, status, models, categories, total_cases, cases_done,
       passed_count, warning_count, failed_count, risk_score, execution_duration_ms,
-      estimated_duration, execution_settings, is_synthetic, created_at, completed_at, cases_errored
+      estimated_duration, execution_settings, is_synthetic, created_at, completed_at, cases_errored, user_id
     ) VALUES (
       ?, ?, ?, 'COMPLETED', ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, 0, ?, ?, 0
+      ?, ?, 0, ?, ?, 0, 'user_amit_shukla'
     )
   `);
 
@@ -436,13 +436,13 @@ export function seedEnterpriseModelsAndEvaluations(dbInstance) {
       prompt_hash, prompt, response_hash, raw_response, truncated_response,
       tool_calls, latency_ms, tokens_prompt, tokens_completion, tokens_total,
       verdict, triggered_policies, explanation, evidence, mitigation,
-      seed, temperature, is_synthetic, executed_at
+      seed, temperature, is_synthetic, executed_at, user_id
     ) VALUES (
       ?, ?, ?, ?, ?, ?, 1,
       ?, ?, ?, ?, ?,
       '[]', ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      42, 0.0, 0, ?
+      42, 0.0, 0, ?, 'user_amit_shukla'
     )
   `);
 
@@ -450,11 +450,11 @@ export function seedEnterpriseModelsAndEvaluations(dbInstance) {
     INSERT INTO findings (
       id, eval_case_id, run_id, evaluation_id, model_id, model_name, category, severity, status,
       test_case_prompt, observed_response, expected_behavior, explanation,
-      policy_violated, risk_score, evidence, mitigation, is_synthetic, created_at
+      policy_violated, risk_score, evidence, mitigation, is_synthetic, created_at, user_id
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?,
-      ?, ?, ?, ?, 0, ?
+      ?, ?, ?, ?, 0, ?, 'user_amit_shukla'
     )
   `);
 

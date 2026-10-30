@@ -7,7 +7,8 @@ import type {
   Dataset,
   Finding,
   SecurityEvent,
-  PlatformSettings
+  PlatformSettings,
+  UserProfile
 } from './types';
 import {
   fetchDashboardSummary,
@@ -17,12 +18,16 @@ import {
   fetchFindings,
   fetchSecurityEvents,
   fetchSettings,
-  resetDemoData
+  resetDemoData,
+  fetchCurrentUserApi,
+  loginApi,
+  logoutApi
 } from './services/api';
 
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { CommandPalette } from './components/CommandPalette';
+import { AuthModal } from './components/AuthModal';
 
 import { DashboardPage } from './pages/DashboardPage';
 import { RedTeamPage } from './pages/RedTeamPage';
@@ -53,6 +58,10 @@ export function App() {
 
   // Global Dialogs
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   // Main Data States
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -145,8 +154,28 @@ export function App() {
     }
   };
 
+  const initAuthAndData = async () => {
+    try {
+      const me = await fetchCurrentUserApi();
+      if (me) {
+        setCurrentUser(me);
+      } else {
+        // Automatic authentication for primary profile (amitshukla@1234 / amitshukla7)
+        // Ensures immediate access to all existing data out of the box
+        const loginRes = await loginApi('amitshukla@1234', 'amitshukla7').catch(() => null);
+        if (loginRes?.user) {
+          setCurrentUser(loginRes.user);
+        }
+      }
+    } catch {
+      // Continue gracefully
+    } finally {
+      await loadAllData();
+    }
+  };
+
   useEffect(() => {
-    loadAllData();
+    initAuthAndData();
   }, []);
 
   const handleResetDemo = async () => {
@@ -155,6 +184,19 @@ export function App() {
       await loadAllData();
       setActivePage('dashboard');
     }
+  };
+
+  const handleLogout = async () => {
+    await logoutApi();
+    setCurrentUser(null);
+    setIsAuthModalOpen(true);
+    await loadAllData();
+  };
+
+  const handleAuthSuccess = async (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsAuthModalOpen(false);
+    await loadAllData();
   };
 
   const handleNavigate = (page: PageId, extraId?: string) => {
@@ -182,8 +224,11 @@ export function App() {
         {/* Top Header */}
         <TopBar
           activePage={activePage}
+          currentUser={currentUser}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onSelectPage={(page) => setActivePage(page)}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic Page Router */}
@@ -255,7 +300,11 @@ export function App() {
 
               {activePage === 'profile' && (
                 <ProfilePage
+                  currentUser={currentUser}
                   onResetDemo={handleResetDemo}
+                  onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                  onLogout={handleLogout}
+                  onProfileUpdate={(updated) => setCurrentUser(updated)}
                 />
               )}
 
@@ -285,6 +334,13 @@ export function App() {
         policies={policies}
         findings={findings}
         datasets={datasets}
+      />
+
+      {/* Global Authentication Modal (Login / Sign Up) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );

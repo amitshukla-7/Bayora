@@ -26,6 +26,29 @@ import type {
 
 const API_BASE = '/api';
 
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('bayora_auth_token');
+}
+
+export function setAuthToken(token: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem('bayora_auth_token', token);
+  } else {
+    localStorage.removeItem('bayora_auth_token');
+  }
+}
+
+export function authFetch(url: string | URL | Request, init?: RequestInit): Promise<Response> {
+  const token = getAuthToken();
+  const headers = new Headers(init?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return globalThis.fetch(url, { ...init, headers });
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -34,11 +57,64 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
+export interface AuthResponse {
+  user: UserProfile;
+  token: string;
+  expiresAt: string;
+}
+
+export async function loginApi(email: string, password: string): Promise<AuthResponse> {
+  const res = await globalThis.fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await handleResponse<AuthResponse>(res);
+  setAuthToken(data.token);
+  return data;
+}
+
+export async function registerApi(data: {
+  email: string;
+  password: string;
+  name?: string;
+  organization?: string;
+  role?: string;
+}): Promise<AuthResponse> {
+  const res = await globalThis.fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  const resData = await handleResponse<AuthResponse>(res);
+  setAuthToken(resData.token);
+  return resData;
+}
+
+export async function logoutApi(): Promise<{ success: boolean }> {
+  try {
+    const res = await authFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+    await handleResponse<{ success: boolean }>(res);
+  } catch {}
+  setAuthToken(null);
+  return { success: true };
+}
+
+export async function fetchCurrentUserApi(): Promise<UserProfile | null> {
+  try {
+    const res = await authFetch(`${API_BASE}/auth/me`);
+    const data = await handleResponse<{ user: UserProfile }>(res);
+    return data.user;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Dashboard
  */
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
-  const res = await fetch(`${API_BASE}/dashboard/summary`);
+  const res = await authFetch(`${API_BASE}/dashboard/summary`);
   return handleResponse<DashboardSummary>(res);
 }
 
@@ -46,17 +122,17 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
  * Models
  */
 export async function fetchModels(): Promise<{ models: Model[]; total: number }> {
-  const res = await fetch(`${API_BASE}/models`);
+  const res = await authFetch(`${API_BASE}/models`);
   return handleResponse<{ models: Model[]; total: number }>(res);
 }
 
 export async function fetchModelById(id: string): Promise<Model> {
-  const res = await fetch(`${API_BASE}/models/${id}`);
+  const res = await authFetch(`${API_BASE}/models/${id}`);
   return handleResponse<Model>(res);
 }
 
 export async function createModel(model: Partial<Model>): Promise<Model> {
-  const res = await fetch(`${API_BASE}/models`, {
+  const res = await authFetch(`${API_BASE}/models`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(model)
@@ -65,17 +141,17 @@ export async function createModel(model: Partial<Model>): Promise<Model> {
 }
 
 export async function deleteModel(id: string): Promise<{ success: boolean; id: string }> {
-  const res = await fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' });
+  const res = await authFetch(`${API_BASE}/models/${id}`, { method: 'DELETE' });
   return handleResponse<{ success: boolean; id: string }>(res);
 }
 
 export async function verifyModelApi(id: string): Promise<Model> {
-  const res = await fetch(`${API_BASE}/models/${id}/verify`, { method: 'POST' });
+  const res = await authFetch(`${API_BASE}/models/${id}/verify`, { method: 'POST' });
   return handleResponse<Model>(res);
 }
 
 export async function pullOllamaModelApi(name: string): Promise<Model> {
-  const res = await fetch(`${API_BASE}/models/pull-ollama`, {
+  const res = await authFetch(`${API_BASE}/models/pull-ollama`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name })
@@ -86,7 +162,7 @@ export async function pullOllamaModelApi(name: string): Promise<Model> {
 export async function uploadGgufModelApi(file: File): Promise<Model> {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch(`${API_BASE}/models/upload`, {
+  const res = await authFetch(`${API_BASE}/models/upload`, {
     method: 'POST',
     body: formData
   });
@@ -94,7 +170,7 @@ export async function uploadGgufModelApi(file: File): Promise<Model> {
 }
 
 export async function importHuggingFaceModelApi(repoId: string): Promise<Model> {
-  const res = await fetch(`${API_BASE}/models/import-hf`, {
+  const res = await authFetch(`${API_BASE}/models/import-hf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repoId })
@@ -106,12 +182,12 @@ export async function importHuggingFaceModelApi(repoId: string): Promise<Model> 
  * Datasets
  */
 export async function fetchDatasets(): Promise<{ datasets: Dataset[]; total: number }> {
-  const res = await fetch(`${API_BASE}/datasets`);
+  const res = await authFetch(`${API_BASE}/datasets`);
   return handleResponse<{ datasets: Dataset[]; total: number }>(res);
 }
 
 export async function fetchDatasetById(id: string): Promise<Dataset> {
-  const res = await fetch(`${API_BASE}/datasets/${id}`);
+  const res = await authFetch(`${API_BASE}/datasets/${id}`);
   return handleResponse<Dataset>(res);
 }
 
@@ -120,7 +196,7 @@ export async function uploadDataset(dataset: {
   description?: string;
   cases: any[];
 }): Promise<Dataset> {
-  const res = await fetch(`${API_BASE}/datasets/upload`, {
+  const res = await authFetch(`${API_BASE}/datasets/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dataset)
@@ -132,7 +208,7 @@ export async function uploadDataset(dataset: {
  * Security Policies
  */
 export async function fetchPolicies(): Promise<{ policies: Policy[]; total: number }> {
-  const res = await fetch(`${API_BASE}/security/policies`);
+  const res = await authFetch(`${API_BASE}/security/policies`);
   return handleResponse<{ policies: Policy[]; total: number }>(res);
 }
 
@@ -149,7 +225,7 @@ export async function updatePolicy(
     severity?: string;
   }
 ): Promise<Policy> {
-  const res = await fetch(`${API_BASE}/security/policies/${id}`, {
+  const res = await authFetch(`${API_BASE}/security/policies/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)
@@ -158,12 +234,12 @@ export async function updatePolicy(
 }
 
 export async function fetchPolicyHistory(id: string): Promise<{ history: PolicyHistoryItem[]; total: number }> {
-  const res = await fetch(`${API_BASE}/security/policies/${id}/history`);
+  const res = await authFetch(`${API_BASE}/security/policies/${id}/history`);
   return handleResponse<{ history: PolicyHistoryItem[]; total: number }>(res);
 }
 
 export async function fetchCriticalStatus(): Promise<CriticalStatusResponse> {
-  const res = await fetch(`${API_BASE}/security/critical-status`);
+  const res = await authFetch(`${API_BASE}/security/critical-status`);
   return handleResponse<CriticalStatusResponse>(res);
 }
 
@@ -172,7 +248,7 @@ export async function testPolicyInteractively(payload: {
   prompt?: string;
   response?: string;
 }): Promise<PolicyTestResult> {
-  const res = await fetch(`${API_BASE}/security/policies/test`, {
+  const res = await authFetch(`${API_BASE}/security/policies/test`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -181,7 +257,7 @@ export async function testPolicyInteractively(payload: {
 }
 
 export async function fetchSecurityEvents(): Promise<{ events: SecurityEvent[] }> {
-  const res = await fetch(`${API_BASE}/security/events`);
+  const res = await authFetch(`${API_BASE}/security/events`);
   return handleResponse<{ events: SecurityEvent[] }>(res);
 }
 
@@ -189,12 +265,12 @@ export async function fetchSecurityEvents(): Promise<{ events: SecurityEvent[] }
  * Red Team & Evaluations
  */
 export async function fetchEvaluations(): Promise<{ evaluations: Evaluation[]; total: number }> {
-  const res = await fetch(`${API_BASE}/evaluations`);
+  const res = await authFetch(`${API_BASE}/evaluations`);
   return handleResponse<{ evaluations: Evaluation[]; total: number }>(res);
 }
 
 export async function fetchEvaluationById(id: string): Promise<Evaluation> {
-  const res = await fetch(`${API_BASE}/evaluations/${id}`);
+  const res = await authFetch(`${API_BASE}/evaluations/${id}`);
   return handleResponse<Evaluation>(res);
 }
 
@@ -216,7 +292,7 @@ export async function launchEvaluation(payload: {
   findingsCount: number;
   findings: any[];
 }> {
-  const res = await fetch(`${API_BASE}/evaluations/launch`, {
+  const res = await authFetch(`${API_BASE}/evaluations/launch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -228,17 +304,17 @@ export async function launchEvaluation(payload: {
  * Server-Driven Evaluation Jobs & Lifecycle
  */
 export async function fetchActiveEvalRun(): Promise<{ active: ActiveEvalRun | null }> {
-  const res = await fetch(`${API_BASE}/eval/runs/active`);
+  const res = await authFetch(`${API_BASE}/eval/runs/active`);
   return handleResponse<{ active: ActiveEvalRun | null }>(res);
 }
 
 export async function fetchEvalRunStatus(id: string): Promise<ActiveEvalRun> {
-  const res = await fetch(`${API_BASE}/eval/runs/${id}`);
+  const res = await authFetch(`${API_BASE}/eval/runs/${id}`);
   return handleResponse<ActiveEvalRun>(res);
 }
 
 export async function cancelEvalRunApi(id: string): Promise<{ success: boolean; id: string; status: string }> {
-  const res = await fetch(`${API_BASE}/eval/runs/${id}/cancel`, { method: 'POST' });
+  const res = await authFetch(`${API_BASE}/eval/runs/${id}/cancel`, { method: 'POST' });
   return handleResponse(res);
 }
 
@@ -247,7 +323,7 @@ export async function runPreflightApi(payload: {
   datasetId?: string;
   categories: string[];
 }): Promise<PreflightResult> {
-  const res = await fetch(`${API_BASE}/eval/preflight`, {
+  const res = await authFetch(`${API_BASE}/eval/preflight`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -267,7 +343,7 @@ export async function fetchDynamicPresetsApi(
   if (modelIds.length > 0) query.set('modelIds', modelIds.join(','));
   if (datasetId) query.set('datasetId', datasetId);
 
-  const res = await fetch(`${API_BASE}/eval/presets?${query.toString()}`);
+  const res = await authFetch(`${API_BASE}/eval/presets?${query.toString()}`);
   return handleResponse(res);
 }
 
@@ -275,12 +351,12 @@ export async function fetchDynamicPresetsApi(
  * User Profile & Notifications
  */
 export async function fetchUserProfile(): Promise<UserProfile> {
-  const res = await fetch(`${API_BASE}/user/profile`);
+  const res = await authFetch(`${API_BASE}/user/profile`);
   return handleResponse<UserProfile>(res);
 }
 
 export async function updateUserProfileApi(data: Partial<UserProfile>): Promise<UserProfile> {
-  const res = await fetch(`${API_BASE}/user/profile`, {
+  const res = await authFetch(`${API_BASE}/user/profile`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -293,7 +369,7 @@ export async function fetchNotifications(): Promise<{
   unreadCount: number;
   total: number;
 }> {
-  const res = await fetch(`${API_BASE}/notifications`);
+  const res = await authFetch(`${API_BASE}/notifications`);
   return handleResponse(res);
 }
 
@@ -302,7 +378,7 @@ export async function markNotificationsReadApi(ids?: string[]): Promise<{
   unreadCount: number;
   total: number;
 }> {
-  const res = await fetch(`${API_BASE}/notifications/mark-read`, {
+  const res = await authFetch(`${API_BASE}/notifications/mark-read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
@@ -325,7 +401,7 @@ export async function fetchFindings(params?: {
   if (params?.status) query.set('status', params.status);
   if (params?.evaluationId) query.set('evaluationId', params.evaluationId);
 
-  const res = await fetch(`${API_BASE}/findings?${query.toString()}`);
+  const res = await authFetch(`${API_BASE}/findings?${query.toString()}`);
   return handleResponse<{ findings: Finding[]; total: number }>(res);
 }
 
@@ -333,12 +409,12 @@ export async function fetchFindings(params?: {
  * Audit Ledger
  */
 export async function fetchAuditEvidence(): Promise<{ records: AuditRecord[]; total: number }> {
-  const res = await fetch(`${API_BASE}/audit/evidence`);
+  const res = await authFetch(`${API_BASE}/audit/evidence`);
   return handleResponse<{ records: AuditRecord[]; total: number }>(res);
 }
 
 export async function verifyAuditLedger(): Promise<AuditVerification> {
-  const res = await fetch(`${API_BASE}/audit/verify`, { method: 'POST' });
+  const res = await authFetch(`${API_BASE}/audit/verify`, { method: 'POST' });
   return handleResponse<AuditVerification>(res);
 }
 
@@ -346,7 +422,7 @@ export async function verifyAuditLedger(): Promise<AuditVerification> {
  * Admin Reset
  */
 export async function resetDemoData(): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE}/admin/reset`, { method: 'POST' });
+  const res = await authFetch(`${API_BASE}/admin/reset`, { method: 'POST' });
   return handleResponse<{ success: boolean; message: string }>(res);
 }
 
@@ -354,7 +430,7 @@ export async function resetDemoData(): Promise<{ success: boolean; message: stri
  * Isolation Probes (T01 - T05)
  */
 export async function runIsolationProbes(): Promise<ProbeRunResult> {
-  const res = await fetch(`${API_BASE}/probes/run`, {
+  const res = await authFetch(`${API_BASE}/probes/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -365,12 +441,12 @@ export async function runIsolationProbes(): Promise<ProbeRunResult> {
  * Mutation Lab (M1-M5, B1)
  */
 export async function fetchLabStatus(): Promise<LabStatus> {
-  const res = await fetch(`${API_BASE}/lab/status`);
+  const res = await authFetch(`${API_BASE}/lab/status`);
   return handleResponse<LabStatus>(res);
 }
 
 export async function applyLabMutation(mutationId: string, options: Record<string, any> = {}): Promise<LabMutationResult> {
-  const res = await fetch(`${API_BASE}/lab/mutate/${encodeURIComponent(mutationId)}`, {
+  const res = await authFetch(`${API_BASE}/lab/mutate/${encodeURIComponent(mutationId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options)
@@ -379,7 +455,7 @@ export async function applyLabMutation(mutationId: string, options: Record<strin
 }
 
 export async function restoreLabBaseline(): Promise<LabMutationResult> {
-  const res = await fetch(`${API_BASE}/lab/restore-baseline`, {
+  const res = await authFetch(`${API_BASE}/lab/restore-baseline`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -398,7 +474,7 @@ export async function explainIncident(payload: {
   evidence?: string;
   preferredModel?: string;
 }): Promise<AdvisorIncidentResponse> {
-  const res = await fetch(`${API_BASE}/advisor/explain`, {
+  const res = await authFetch(`${API_BASE}/advisor/explain`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -428,7 +504,7 @@ export async function launchEvaluationStream(
     currentCategory?: string;
   }) => void
 ): Promise<any> {
-  const res = await fetch(`${API_BASE}/evaluations/launch-stream`, {
+  const res = await authFetch(`${API_BASE}/evaluations/launch-stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -511,7 +587,7 @@ export async function launchEvaluationStream(
     while (!finalResult && Date.now() - pollStart < maxPollMs) {
       await new Promise(r => setTimeout(r, 1200));
       try {
-        const res = await fetch(`${API_BASE}/eval/runs/${lastEvalId}`);
+        const res = await authFetch(`${API_BASE}/eval/runs/${lastEvalId}`);
         if (res.ok) {
           const run = await res.json();
           if (run) {
@@ -562,7 +638,7 @@ export async function launchEvaluationStream(
  * Platform Settings (Persistent SQLite Key-Value Store)
  */
 export async function fetchSettings(): Promise<{ settings: PlatformSettings }> {
-  const res = await fetch(`${API_BASE}/settings`);
+  const res = await authFetch(`${API_BASE}/settings`);
   return handleResponse<{ settings: PlatformSettings }>(res);
 }
 
@@ -570,7 +646,7 @@ export async function updateSetting<K extends keyof PlatformSettings>(
   key: K,
   value: PlatformSettings[K]
 ): Promise<{ success: boolean; key: K; value: PlatformSettings[K]; updated_at: string }> {
-  const res = await fetch(`${API_BASE}/settings/${String(key)}`, {
+  const res = await authFetch(`${API_BASE}/settings/${String(key)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value })
@@ -581,7 +657,7 @@ export async function updateSetting<K extends keyof PlatformSettings>(
 export async function updateBulkSettings(
   settings: Partial<PlatformSettings>
 ): Promise<{ success: boolean; settings: PlatformSettings }> {
-  const res = await fetch(`${API_BASE}/settings`, {
+  const res = await authFetch(`${API_BASE}/settings`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings)
@@ -592,12 +668,13 @@ export async function updateBulkSettings(
 export async function resetSettings(
   section = 'all'
 ): Promise<{ success: boolean; section: string; settings: PlatformSettings }> {
-  const res = await fetch(`${API_BASE}/settings/reset`, {
+  const res = await authFetch(`${API_BASE}/settings/reset`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ section })
   });
   return handleResponse(res);
 }
+
 
 

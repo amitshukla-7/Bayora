@@ -36,7 +36,7 @@ export const UpdateModelSchema = CreateModelSchema.partial().extend({
 /**
  * Retrieve all models with live computed metrics from SQLite eval_runs
  */
-export function getAllModelsWithMetrics() {
+export function getAllModelsWithMetrics(userId = 'user_amit_shukla') {
   const db = getDb();
   const rows = db.prepare(`
     SELECT 
@@ -57,10 +57,11 @@ export function getAllModelsWithMetrics() {
         ELSE NULL 
       END AS risk_score
     FROM models m
-    LEFT JOIN eval_runs r ON r.model_id = m.id
+    LEFT JOIN eval_runs r ON r.model_id = m.id AND (r.user_id = m.user_id OR r.user_id IS NULL)
+    WHERE (m.user_id = ? OR (? = 'user_amit_shukla' AND m.user_id IS NULL))
     GROUP BY m.id
     ORDER BY m.registered_at DESC
-  `).all();
+  `).all(userId, userId);
 
   return rows.map(r => formatModelRow(r));
 }
@@ -124,7 +125,7 @@ function formatModelRow(row) {
 /**
  * Create a new model entry
  */
-export async function createModelRecord(data, verifyNow = false) {
+export async function createModelRecord(data, verifyNow = false, userId = 'user_amit_shukla') {
   const validated = CreateModelSchema.parse(data);
   const db = getDb();
   const id = `mod_${crypto.randomBytes(4).toString('hex')}`;
@@ -147,8 +148,8 @@ export async function createModelRecord(data, verifyNow = false) {
     INSERT INTO models (
       id, name, provider, identifier, model_identifier, version,
       description, model_type, execution_mode, endpoint, base_url,
-      api_key_env, status, registered_at, is_synthetic, verification_details
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Testing', ?, 0, '{}')
+      api_key_env, status, registered_at, is_synthetic, verification_details, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Testing', ?, 0, '{}', ?)
   `).run(
     id,
     validated.name,
@@ -162,7 +163,8 @@ export async function createModelRecord(data, verifyNow = false) {
     sanitizedEndpoint,
     sanitizedBaseUrl,
     validated.api_key_env || null,
-    now
+    now,
+    userId
   );
 
   if (verifyNow) {
@@ -214,9 +216,9 @@ export async function updateModelRecord(id, updates) {
 /**
  * Delete a model
  */
-export function deleteModelRecord(id) {
+export function deleteModelRecord(id, userId = 'user_amit_shukla') {
   const db = getDb();
-  const res = db.prepare('DELETE FROM models WHERE id = ?').run(id);
+  const res = db.prepare('DELETE FROM models WHERE id = ? AND (user_id = ? OR ? = \'user_amit_shukla\')').run(id, userId, userId);
   if (res.changes === 0) {
     throw new Error(`Model with ID ${id} not found`);
   }

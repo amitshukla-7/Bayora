@@ -194,7 +194,7 @@ function initDefaultBaselineRun(db) {
 // Pure SQL Dashboard Aggregates (Zero Hardcoded Data)
 // -------------------------------------------------------------
 
-export function getDashboardSummary() {
+export function getDashboardSummary(userId = 'user_amit_shukla') {
   const db = getDb();
 
   // 1. Live Reconciliation Ribbon Metrics (4-Way Live SQL Invariant)
@@ -206,7 +206,8 @@ export function getDashboardSummary() {
       COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED', 'BREACH')) AS failed_cases,
       COUNT(*) FILTER (WHERE UPPER(verdict) IN ('ERROR', 'ERRORED')) AS errored_cases
     FROM eval_cases
-  `).get() || { total_cases: 0, passed_cases: 0, warning_cases: 0, failed_cases: 0, errored_cases: 0 };
+    WHERE user_id = ?
+  `).get(userId) || { total_cases: 0, passed_cases: 0, warning_cases: 0, failed_cases: 0, errored_cases: 0 };
 
   const totalRuns = counts.total_cases;
   const passedRuns = counts.passed_cases;
@@ -224,11 +225,11 @@ export function getDashboardSummary() {
   // 2. Synthetic Data Mode Detection
   const syntheticCheck = db.prepare(`
     SELECT (
-      (SELECT COUNT(*) FROM eval_cases WHERE is_synthetic = 1) +
-      (SELECT COUNT(*) FROM models WHERE is_synthetic = 1) +
+      (SELECT COUNT(*) FROM eval_cases WHERE is_synthetic = 1 AND user_id = ?) +
+      (SELECT COUNT(*) FROM models WHERE is_synthetic = 1 AND user_id = ?) +
       (SELECT COUNT(*) FROM datasets WHERE is_synthetic = 1)
     ) AS synthetic_count
-  `).get();
+  `).get(userId, userId);
   const syntheticDataMode = Boolean(syntheticCheck && syntheticCheck.synthetic_count > 0);
 
   // 3. 7-Day Trend Series (Daily Volume vs Hallucination Rate)
@@ -246,10 +247,10 @@ export function getDashboardSummary() {
       COUNT(ec.id) FILTER (WHERE ec.category = 'Hallucination') AS hal_total,
       COUNT(ec.id) FILTER (WHERE ec.category = 'Hallucination' AND UPPER(ec.verdict) IN ('FAIL', 'FAILED')) AS hal_fails
     FROM days
-    LEFT JOIN eval_cases ec ON date(ec.executed_at) = days.d
+    LEFT JOIN eval_cases ec ON date(ec.executed_at) = days.d AND ec.user_id = ?
     GROUP BY days.d
     ORDER BY days.d ASC
-  `).all();
+  `).all(userId);
 
   const trends7d = trendsRows.map((r) => ({
     day: r.day_name,
@@ -277,8 +278,9 @@ export function getDashboardSummary() {
       COUNT(*) AS total,
       COUNT(*) FILTER (WHERE verdict IN ('FAIL', 'WARNING')) AS breaches
     FROM eval_cases
+    WHERE user_id = ?
     GROUP BY category
-  `).all();
+  `).all(userId);
 
   const categoryMap = new Map(categoryMetrics.map((c) => [c.category, c]));
 
@@ -339,8 +341,8 @@ export function getDashboardSummary() {
         COUNT(*) AS total,
         COUNT(*) FILTER (WHERE UPPER(verdict) IN ('PASS', 'PASSED')) AS passed
       FROM eval_cases
-      WHERE category IN (${placeholders})
-    `).get(...categories);
+      WHERE category IN (${placeholders}) AND user_id = ?
+    `).get(...categories, userId);
 
     const score = row && row.total > 0 ? Math.round((row.passed * 100) / row.total) : null;
     return {
@@ -354,8 +356,8 @@ export function getDashboardSummary() {
 
   // Latency Axis (Normalized from p50 latency)
   const latencyRow = db.prepare(`
-    SELECT latency_ms FROM eval_cases WHERE latency_ms > 0 ORDER BY latency_ms ASC
-  `).all();
+    SELECT latency_ms FROM eval_cases WHERE latency_ms > 0 AND user_id = ? ORDER BY latency_ms ASC
+  `).all(userId);
 
   let latencyScore = null;
   if (latencyRow.length > 0) {
@@ -388,9 +390,9 @@ export function getDashboardSummary() {
       COUNT(*) AS attempts,
       COUNT(*) FILTER (WHERE UPPER(verdict) IN ('FAIL', 'FAILED')) AS breaches
     FROM eval_cases
-    WHERE is_adversarial = 1
+    WHERE is_adversarial = 1 AND user_id = ?
     GROUP BY category
-  `).all();
+  `).all(userId);
 
   const attackSuccess = attackSuccessRows.map((r) => {
     const n = r.attempts;
@@ -454,9 +456,10 @@ export function createModel(model) {
   const db = getDb();
   const id = model.id || 'mod_' + randomUUID().substring(0, 8);
   const registeredAt = new Date().toISOString();
+  const userId = model.user_id || 'user_amit_shukla';
   db.prepare(`
-    INSERT INTO models (id, name, provider, identifier, version, description, model_type, execution_mode, endpoint, status, registered_at, is_synthetic)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO models (id, name, provider, identifier, version, description, model_type, execution_mode, endpoint, status, registered_at, is_synthetic, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     model.name,
@@ -469,7 +472,8 @@ export function createModel(model) {
     model.endpoint || null,
     model.status || 'Active',
     registeredAt,
-    model.is_synthetic ? 1 : 0
+    model.is_synthetic ? 1 : 0,
+    userId
   );
   return getModelById(id);
 }
@@ -632,9 +636,9 @@ export function updatePolicyState(id, isEnabled) {
 // Evaluation Runs & Cases
 // -------------------------------------------------------------
 
-export function getAllEvaluations() {
+export function getAllEvaluations(userId = 'user_amit_shukla') {
   const db = getDb();
-  return db.prepare('SELECT * FROM eval_runs ORDER BY created_at DESC').all();
+  return db.prepare('SELECT * FROM eval_runs WHERE user_id = ? ORDER BY created_at DESC').all(userId);
 }
 
 export function getEvaluationById(id) {
@@ -650,15 +654,16 @@ export function createEvalRun(run) {
   const db = getDb();
   const id = run.id || 'eval_' + randomUUID().substring(0, 8);
   const now = new Date().toISOString();
+  const userId = run.user_id || 'user_amit_shukla';
 
   db.prepare(`
     INSERT INTO eval_runs (
       id, name, dataset_id, model_id, model_identifier, status, 
       total_cases, passed_count, warning_count, failed_count, 
       execution_duration_ms, seed, temperature, concurrency, 
-      policy_pack_version, config_fingerprint, git_commit, is_synthetic, created_at
+      policy_pack_version, config_fingerprint, git_commit, is_synthetic, created_at, user_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     run.name,
@@ -678,7 +683,8 @@ export function createEvalRun(run) {
     run.config_fingerprint || null,
     run.git_commit || null,
     run.is_synthetic ? 1 : 0,
-    now
+    now,
+    userId
   );
 
   return getEvaluationById(id);
@@ -712,6 +718,7 @@ export function createEvalCase(c) {
   const db = getDb();
   const id = c.id || 'ec_' + randomUUID().substring(0, 10);
   const now = new Date().toISOString();
+  const userId = c.user_id || 'user_amit_shukla';
 
   const promptHash = sha256(c.prompt || '');
   const responseHash = sha256(c.raw_response || '');
@@ -723,9 +730,9 @@ export function createEvalCase(c) {
       prompt_hash, prompt, response_hash, raw_response, truncated_response,
       tool_calls, latency_ms, tokens_prompt, tokens_completion, tokens_total,
       verdict, triggered_policies, explanation, evidence, mitigation,
-      seed, temperature, is_synthetic, executed_at
+      seed, temperature, is_synthetic, executed_at, user_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     c.run_id,
@@ -752,7 +759,8 @@ export function createEvalCase(c) {
     c.seed || 42,
     c.temperature !== undefined ? c.temperature : 0.0,
     c.is_synthetic ? 1 : 0,
-    now
+    now,
+    userId
   );
 
   return db.prepare('SELECT * FROM eval_cases WHERE id = ?').get(id);
@@ -762,10 +770,10 @@ export function createEvalCase(c) {
 // Findings Management
 // -------------------------------------------------------------
 
-export function getAllFindings(filters = {}) {
+export function getAllFindings(filters = {}, userId = 'user_amit_shukla') {
   const db = getDb();
-  let query = 'SELECT * FROM findings WHERE 1=1';
-  const params = [];
+  let query = 'SELECT * FROM findings WHERE (user_id = ? OR ? IS NULL)';
+  const params = [userId, userId];
 
   if (filters.evaluation_id) {
     query += ' AND run_id = ?';
@@ -792,15 +800,16 @@ export function createFinding(f) {
   const db = getDb();
   const id = f.id || 'FND-' + randomUUID().substring(0, 6).toUpperCase();
   const now = new Date().toISOString();
+  const userId = f.user_id || 'user_amit_shukla';
 
   db.prepare(`
     INSERT INTO findings (
       id, eval_case_id, run_id, model_id, model_name, category,
       severity, status, test_case_prompt, observed_response,
       expected_behavior, explanation, policy_violated, risk_score,
-      evidence, mitigation, is_synthetic, created_at
+      evidence, mitigation, is_synthetic, created_at, user_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     f.eval_case_id || null,
@@ -819,7 +828,8 @@ export function createFinding(f) {
     f.evidence || '',
     f.mitigation || '',
     f.is_synthetic ? 1 : 0,
-    now
+    now,
+    userId
   );
 
   return db.prepare('SELECT * FROM findings WHERE id = ?').get(id);

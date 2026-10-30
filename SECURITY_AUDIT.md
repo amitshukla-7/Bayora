@@ -233,3 +233,4 @@ Before applying any remediation, the following golden invariants were computed o
 - **Full Vitest Suite**: 260 tests passed across 16 test files.
 
 Every remediation will be executed sequentially with small, reviewable commits (`security: <what> (<finding class>)`), and re-verified against these exact golden invariants.
+

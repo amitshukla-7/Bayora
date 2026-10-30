@@ -3,25 +3,40 @@ import { getDb } from '../db.mjs';
 
 /**
  * User Profile & Notification Management Service
- * Source of truth: SQLite tables user_profile and notifications.
+ * Source of truth: SQLite tables user_profile, users, and notifications.
  */
 
-export function getUserProfile() {
+export function getUserProfile(userId = 'user_amit_shukla') {
   const db = getDb();
-  let row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('current_user');
+  let row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get(userId);
+
   if (!row) {
-    db.prepare(`
-      INSERT INTO user_profile (id, name, role, email, avatar_initials, organization)
-      VALUES ('current_user', 'Amit Shukla', 'Principal Architect', 'amit.shukla@bayora.enterprise', 'AS', 'Bayora Technologies')
-    `).run();
-    row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('current_user');
+    // Check if user exists in users table
+    const u = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (u) {
+      db.prepare(`
+        INSERT INTO user_profile (id, name, role, email, avatar_initials, organization, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(u.id, u.name, u.role, u.email, u.avatar_initials, u.organization);
+      row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get(userId);
+    } else {
+      // Default to primary profile
+      row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('user_amit_shukla');
+      if (!row) {
+        db.prepare(`
+          INSERT INTO user_profile (id, name, role, email, avatar_initials, organization)
+          VALUES ('user_amit_shukla', 'Amit Shukla', 'Principal Architect', 'amitshukla@1234', 'AS', 'Bayora Technologies')
+        `).run();
+        row = db.prepare('SELECT * FROM user_profile WHERE id = ?').get('user_amit_shukla');
+      }
+    }
   }
   return row;
 }
 
-export function updateUserProfile(data) {
+export function updateUserProfile(data, userId = 'user_amit_shukla') {
   const db = getDb();
-  const current = getUserProfile();
+  const current = getUserProfile(userId);
 
   const name = data.name !== undefined ? String(data.name).trim() : current.name;
   const role = data.role !== undefined ? String(data.role).trim() : current.role;
@@ -41,23 +56,34 @@ export function updateUserProfile(data) {
   db.prepare(`
     UPDATE user_profile
     SET name = ?, role = ?, email = ?, avatar_initials = ?, organization = ?, updated_at = ?
-    WHERE id = 'current_user'
-  `).run(name, role, email, initials, organization, now);
+    WHERE id = ?
+  `).run(name, role, email, initials, organization, now, userId);
 
-  return getUserProfile();
+  // Sync to users table if present
+  try {
+    db.prepare(`
+      UPDATE users
+      SET name = ?, role = ?, organization = ?, avatar_initials = ?, updated_at = ?
+      WHERE id = ?
+    `).run(name, role, organization, initials, now, userId);
+  } catch {}
+
+  return getUserProfile(userId);
 }
 
-export function getNotifications(limit = 20) {
+export function getNotifications(limit = 20, userId = 'user_amit_shukla') {
   const db = getDb();
   const rows = db.prepare(`
     SELECT * FROM notifications
+    WHERE (user_id = ? OR (? = 'user_amit_shukla' AND user_id IS NULL))
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(limit);
+  `).all(userId, userId, limit);
 
   const unreadCountRow = db.prepare(`
-    SELECT COUNT(*) as count FROM notifications WHERE is_read = 0
-  `).get();
+    SELECT COUNT(*) as count FROM notifications 
+    WHERE (user_id = ? OR (? = 'user_amit_shukla' AND user_id IS NULL)) AND is_read = 0
+  `).get(userId, userId);
 
   return {
     notifications: rows.map(r => ({
@@ -69,27 +95,34 @@ export function getNotifications(limit = 20) {
   };
 }
 
-export function addNotification({ title, message, type = 'info', link = null }) {
+export function addNotification({ title, message, type = 'info', link = null, userId = 'user_amit_shukla' }) {
   const db = getDb();
   const id = `notif_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
   const now = new Date().toISOString();
 
   db.prepare(`
-    INSERT INTO notifications (id, title, message, type, is_read, link, created_at)
-    VALUES (?, ?, ?, ?, 0, ?, ?)
-  `).run(id, title, message, type, link, now);
+    INSERT INTO notifications (id, title, message, type, is_read, link, created_at, user_id)
+    VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+  `).run(id, title, message, type, link, now, userId);
 
-  return { id, title, message, type, is_read: 0, link, created_at: now };
+  return { id, title, message, type, is_read: 0, link, created_at: now, user_id: userId };
 }
 
-export function markNotificationsRead(ids = null) {
+export function markNotificationsRead(ids = null, userId = 'user_amit_shukla') {
   const db = getDb();
   if (Array.isArray(ids) && ids.length > 0) {
     const placeholders = ids.map(() => '?').join(',');
-    db.prepare(`UPDATE notifications SET is_read = 1 WHERE id IN (${placeholders})`).run(...ids);
+    db.prepare(`
+      UPDATE notifications 
+      SET is_read = 1 
+      WHERE (user_id = ? OR (? = 'user_amit_shukla' AND user_id IS NULL)) AND id IN (${placeholders})
+    `).run(userId, userId, ...ids);
   } else {
-    db.prepare('UPDATE notifications SET is_read = 1').run();
+    db.prepare(`
+      UPDATE notifications 
+      SET is_read = 1 
+      WHERE (user_id = ? OR (? = 'user_amit_shukla' AND user_id IS NULL))
+    `).run(userId, userId);
   }
-  return getNotifications();
+  return getNotifications(20, userId);
 }
-
