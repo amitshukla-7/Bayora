@@ -105,17 +105,18 @@ export function createModelAdapter(modelOrId) {
   }
 
   if (modelConfig.id === 'adaptation') {
-    // In cloud environments (e.g. Render) without a local Ollama daemon,
-    // if GROQ_API_KEY is provided, route Adaptation via free Groq Cloud inference
-    if (process.env.GROQ_API_KEY && !process.env.OLLAMA_HOST) {
+    // In cloud production environments (e.g. Render) without a local Ollama daemon,
+    // if GROQ_API_KEY is provided, route Adaptation via free Groq Cloud inference.
+    // In local development, preserve exact local Ollama execution.
+    if (process.env.GROQ_API_KEY && process.env.NODE_ENV === 'production' && !process.env.OLLAMA_HOST) {
       return new OpenAICompatibleAdapter({
         ...modelConfig,
         id: 'adaptation',
         name: 'Adaptation',
         baseUrl: 'https://api.groq.com/openai/v1',
         apiKey: process.env.GROQ_API_KEY,
-        modelIdentifier: 'llama-3.3-70b-versatile',
-        identifier: 'llama-3.3-70b-versatile'
+        modelIdentifier: 'openai/gpt-oss-120b',
+        identifier: 'openai/gpt-oss-120b'
       });
     }
   }

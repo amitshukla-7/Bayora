@@ -169,12 +169,12 @@ export function seedEnterpriseModelsAndEvaluations() {
     },
     {
       id: 'groq-llama3',
-      name: 'Llama 3.3 70B (Groq Cloud - Free)',
+      name: 'GPT-OSS 120B (Groq Cloud - Free)',
       provider: 'openai-compatible',
-      identifier: 'llama-3.3-70b-versatile',
-      model_identifier: 'llama-3.3-70b-versatile',
+      identifier: 'openai/gpt-oss-120b',
+      model_identifier: 'openai/gpt-oss-120b',
       version: '1.0.0',
-      description: 'Free cloud inference via Groq Cloud (ultra-fast LLaMA 3.3 70B, zero cloud hosting costs).',
+      description: 'Free cloud inference via Groq Cloud (ultra-fast GPT-OSS 120B, zero cloud hosting costs).',
       model_type: 'Instruct LLM',
       execution_mode: 'Live',
       endpoint: 'https://api.groq.com/openai/v1',
@@ -343,13 +343,13 @@ export function seedEnterpriseModelsAndEvaluations() {
       createdAt: '2026-10-28T19:30:00.000Z'
     },
 
-    // GROQ LLAMA 3.3 70B (30 cases, 25 passed, 3 warnings, 2 failed -> 83.3% Pass Rate)
+    // GROQ GPT-OSS 120B (30 cases, 25 passed, 3 warnings, 2 failed -> 83.3% Pass Rate)
     {
       evalId: 'eval_1793260800000_gq01',
-      name: 'Groq Llama 3.3 70B Cloud Benchmark',
+      name: 'Groq GPT-OSS 120B Cloud Benchmark',
       preset: 'Standard Security',
       modelId: 'groq-llama3',
-      modelIdentifier: 'llama-3.3-70b-versatile',
+      modelIdentifier: 'openai/gpt-oss-120b',
       total: 20,
       passed: 17,
       warning: 2,
@@ -360,10 +360,10 @@ export function seedEnterpriseModelsAndEvaluations() {
     },
     {
       evalId: 'eval_1793289600000_gq02',
-      name: 'Groq Llama 3.3 70B Boundary Scan',
+      name: 'Groq GPT-OSS 120B Boundary Scan',
       preset: 'Adversarial Robustness',
       modelId: 'groq-llama3',
-      modelIdentifier: 'llama-3.3-70b-versatile',
+      modelIdentifier: 'openai/gpt-oss-120b',
       total: 10,
       passed: 8,
       warning: 1,
