@@ -504,15 +504,51 @@ export async function launchEvaluationStream(
   }
 
   if (!finalResult && lastEvalId) {
-    try {
-      const res = await fetch(`${API_BASE}/evaluations/runs/${lastEvalId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (data.status === 'COMPLETED' || data.cases_done >= data.total_cases)) {
-          finalResult = data;
+    // Stream closed early (e.g. proxy idle timeout), but the job is running on the server.
+    // Seamlessly poll the server source of truth until completion.
+    const pollStart = Date.now();
+    const maxPollMs = 300000; // 5 minutes max
+    while (!finalResult && Date.now() - pollStart < maxPollMs) {
+      await new Promise(r => setTimeout(r, 1200));
+      try {
+        const res = await fetch(`${API_BASE}/eval/runs/${lastEvalId}`);
+        if (res.ok) {
+          const run = await res.json();
+          if (run) {
+            if (onProgress && run.total_cases > 0) {
+              onProgress({
+                evalId: lastEvalId,
+                percent: run.percent || Math.round((run.cases_done / run.total_cases) * 100),
+                completed: run.cases_done || 0,
+                total: run.total_cases || 0,
+                step: `Evaluating case ${run.cases_done + 1} of ${run.total_cases}...`
+              });
+            }
+            if (run.status === 'COMPLETED' || run.cases_done >= run.total_cases) {
+              finalResult = {
+                id: run.id,
+                evalId: run.id,
+                name: run.name,
+                status: 'COMPLETED',
+                totalCases: run.total_cases,
+                passedCount: run.passed_count || 0,
+                warningCount: run.warning_count || 0,
+                failedCount: run.failed_count || 0,
+                erroredCount: run.cases_errored || 0,
+                riskScore: run.risk_score || 0
+              };
+              break;
+            } else if (run.status === 'FAILED' || run.status === 'CANCELLED') {
+              throw new Error(run.error_detail || `Evaluation run ${run.status.toLowerCase()} on server.`);
+            }
+          }
+        }
+      } catch (pollErr: any) {
+        if (pollErr.message && !pollErr.message.includes('fetch')) {
+          throw pollErr;
         }
       }
-    } catch {}
+    }
   }
 
   if (!finalResult) {

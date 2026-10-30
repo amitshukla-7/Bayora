@@ -52,10 +52,12 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
   onRefreshData,
   onOpenUploadModel,
 }) => {
-  // Model selection: prioritize verified active live model (ollama-smollm)
-  const activeSmollm = models.find(m => (m.id === 'ollama-smollm' || m.identifier === 'smollm:135m') && m.status === 'Active');
-  const defaultModelIds = activeSmollm
-    ? [activeSmollm.id]
+  // Model selection: prioritize Adaptation or verified active live model
+  const defaultModel = models.find(m => m.id === 'adaptation')
+    || models.find(m => (m.id === 'ollama-smollm' || m.identifier === 'smollm:135m') && m.status === 'Active')
+    || models.find(m => m.status === 'Active');
+  const defaultModelIds = defaultModel
+    ? [defaultModel.id]
     : models.filter(m => m.status === 'Active').slice(0, 1).map(m => m.id);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>(
     defaultModelIds.length > 0 ? defaultModelIds : (models[0] ? [models[0].id] : [])
@@ -384,6 +386,9 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
               riskScore: (run as any).risk_score || 0
             });
             await onRefreshData();
+            return;
+          } else if (run && run.status === 'RUNNING') {
+            // Background execution is actively progressing on server; keep executing
             return;
           }
         } catch {}

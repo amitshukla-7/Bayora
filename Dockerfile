@@ -30,3 +30,4 @@ COPY --from=builder /app/models.yaml ./models.yaml
 EXPOSE 3001
 
 CMD ["node", "--experimental-strip-types", "server/index.mjs"]
+

@@ -169,54 +169,15 @@ function initDefaultBaselineRun(db) {
   const check = db.prepare('SELECT COUNT(*) as count FROM eval_runs').get();
   if (check && check.count > 0) return;
 
-  const baselinePath = resolve(__dirname, 'canonical_baseline_eval.json');
-  if (!fs.existsSync(baselinePath)) return;
-
   try {
-    const raw = fs.readFileSync(baselinePath, 'utf8');
-    const { run, evaluation, cases, findings } = JSON.parse(raw);
-
-    // Ensure model reference exists for foreign key constraint
-    db.prepare(`
-      INSERT OR IGNORE INTO models (id, name, provider, identifier, model_identifier, status, registered_at)
-      VALUES ('ollama-smollm', 'SmolLM 135M (Local Ollama)', 'ollama', 'smollm:135m', 'smollm:135m', 'Active', datetime('now'))
-    `).run();
-
-    if (run) {
-      const runKeys = Object.keys(run);
-      const runPlaceholders = runKeys.map(() => '?').join(',');
-      db.prepare(`INSERT OR IGNORE INTO eval_runs (${runKeys.join(',')}) VALUES (${runPlaceholders})`)
-        .run(...Object.values(run));
-    }
-
-    if (evaluation) {
-      const evalKeys = Object.keys(evaluation);
-      const evalPlaceholders = evalKeys.map(() => '?').join(',');
-      db.prepare(`INSERT OR IGNORE INTO evaluations (${evalKeys.join(',')}) VALUES (${evalPlaceholders})`)
-        .run(...Object.values(evaluation));
-    }
-
-    if (Array.isArray(cases) && cases.length > 0) {
-      for (const c of cases) {
-        const cKeys = Object.keys(c);
-        const cPlaceholders = cKeys.map(() => '?').join(',');
-        db.prepare(`INSERT OR IGNORE INTO eval_cases (${cKeys.join(',')}) VALUES (${cPlaceholders})`)
-          .run(...Object.values(c));
-      }
-    }
-
-    if (Array.isArray(findings) && findings.length > 0) {
-      for (const f of findings) {
-        const fKeys = Object.keys(f);
-        const fPlaceholders = fKeys.map(() => '?').join(',');
-        db.prepare(`INSERT OR IGNORE INTO findings (${fKeys.join(',')}) VALUES (${fPlaceholders})`)
-          .run(...Object.values(f));
-      }
-    }
-
-    console.log(`[BOOTSTRAP] Initialized canonical baseline evaluation (${cases ? cases.length : 0} cases, ${findings ? findings.length : 0} findings) into SQLite.`);
+    // Dynamic import to avoid circular dependencies during initialization
+    import('./seed_enterprise_models.mjs').then(m => {
+      m.seedEnterpriseModelsAndEvaluations();
+    }).catch(err => {
+      console.warn('[BOOTSTRAP] Failed to seed enterprise baseline runs:', err.message);
+    });
   } catch (err) {
-    console.warn('[BOOTSTRAP] Failed to seed canonical baseline run:', err.message);
+    console.warn('[BOOTSTRAP] Failed to initiate enterprise baseline run:', err.message);
   }
 }
 

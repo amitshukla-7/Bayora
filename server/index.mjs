@@ -514,6 +514,11 @@ app.get('/api/eval/runs/active', (c) => {
   return c.json({ active });
 });
 
+app.get('/api/evaluations/runs/active', (c) => {
+  const active = getActiveEvalJob();
+  return c.json({ active });
+});
+
 app.get('/api/eval/runs/:id', (c) => {
   const id = c.req.param('id');
   const run = getEvalRunDetails(id);
@@ -521,7 +526,24 @@ app.get('/api/eval/runs/:id', (c) => {
   return c.json(run);
 });
 
+app.get('/api/evaluations/runs/:id', (c) => {
+  const id = c.req.param('id');
+  const run = getEvalRunDetails(id);
+  if (!run) return c.json({ error: 'Evaluation run not found' }, 404);
+  return c.json(run);
+});
+
 app.post('/api/eval/runs/:id/cancel', (c) => {
+  const id = c.req.param('id');
+  try {
+    const result = cancelEvalRun(id);
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post('/api/evaluations/runs/:id/cancel', (c) => {
   const id = c.req.param('id');
   try {
     const result = cancelEvalRun(id);
@@ -561,8 +583,21 @@ app.post('/api/evaluations/launch', async (c) => {
 
 app.post('/api/evaluations/launch-stream', async (c) => {
   try {
+    c.header('X-Accel-Buffering', 'no');
     const body = await c.req.json();
     return streamSSE(c, async (stream) => {
+      // Send regular keepalive ping comment to prevent intermediate proxy timeout
+      const pingTimer = setInterval(async () => {
+        try {
+          await stream.writeSSE({
+            event: 'ping',
+            data: JSON.stringify({ ping: Date.now() })
+          });
+        } catch {
+          clearInterval(pingTimer);
+        }
+      }, 3000);
+
       try {
         const result = await executeEvaluationRunServer({
           ...body,
@@ -572,10 +607,12 @@ app.post('/api/evaluations/launch-stream', async (c) => {
             });
           }
         });
+        clearInterval(pingTimer);
         await stream.writeSSE({
           data: JSON.stringify({ type: 'complete', result })
         });
       } catch (err) {
+        clearInterval(pingTimer);
         await stream.writeSSE({
           data: JSON.stringify({ type: 'error', error: err.message })
         });

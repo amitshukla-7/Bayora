@@ -28,7 +28,7 @@ async function runDemoCheck() {
   const db = getDb();
   let modelRecord = db.prepare(`
     SELECT * FROM models 
-    WHERE id = 'ollama-smollm' OR identifier = 'smollm:135m' OR model_identifier = 'smollm:135m'
+    WHERE id = 'ollama-smollm'
   `).get();
 
   if (!modelRecord) {

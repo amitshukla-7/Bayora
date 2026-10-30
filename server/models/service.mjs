@@ -55,7 +55,7 @@ export function getAllModelsWithMetrics() {
         ELSE NULL 
       END AS risk_score
     FROM models m
-    LEFT JOIN eval_runs r ON r.model_id = m.id OR r.model_identifier = m.identifier
+    LEFT JOIN eval_runs r ON r.model_id = m.id
     GROUP BY m.id
     ORDER BY m.registered_at DESC
   `).all();
@@ -87,7 +87,7 @@ export function getModelWithMetrics(id) {
         ELSE NULL 
       END AS risk_score
     FROM models m
-    LEFT JOIN eval_runs r ON r.model_id = m.id OR r.model_identifier = m.identifier
+    LEFT JOIN eval_runs r ON r.model_id = m.id
     WHERE m.id = ?
     GROUP BY m.id
   `).get(id);
