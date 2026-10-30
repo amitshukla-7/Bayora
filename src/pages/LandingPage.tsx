@@ -143,7 +143,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
               <h2 className="text-base font-semibold text-slate-900">Deterministic Policy Oracle</h2>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Evaluates every LLM completion against strict mathematical policies. Zero probabilistic hallu-grading;
+                Evaluates every LLM completion against strict mathematical policies. Zero probabilistic hallucination grading;
                 policies check deterministic boundaries, regex constraints, and entropy ceilings.
               </p>
             </div>

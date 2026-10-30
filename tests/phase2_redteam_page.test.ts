@@ -238,5 +238,13 @@ describe('Phase 2 — Red Team Evaluation Lifecycle & Live Server State', () => 
       expect(content).toContain('choose benchmark call sets');
       expect(content).not.toContain('choose benchmark callsets');
     });
+
+    it('verifies that LandingPage copy eliminates colloquial slang "hallu-grading" in favor of "hallucination grading" (ArgosX Issue 2)', () => {
+      const landingPath = path.resolve(process.cwd(), 'src', 'pages', 'LandingPage.tsx');
+      const content = fs.readFileSync(landingPath, 'utf8');
+      expect(content).toContain('Zero probabilistic hallucination grading');
+      expect(content).not.toContain('hallu-grading');
+      expect(content).not.toMatch(/\bhallu\b/);
+    });
   });
 });
