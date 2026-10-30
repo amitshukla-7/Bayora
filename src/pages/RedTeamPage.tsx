@@ -418,7 +418,7 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Configure adversarial attack vectors, choose benchmark callsets, and execute deterministic security evaluations.
+            Configure adversarial attack vectors, choose benchmark call sets, and execute deterministic security evaluations.
           </p>
         </div>
 

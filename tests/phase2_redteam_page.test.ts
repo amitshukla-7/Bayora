@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { getDb } from '../server/db.mjs';
 import {
   getUserProfile,
@@ -226,6 +228,15 @@ describe('Phase 2 — Red Team Evaluation Lifecycle & Live Server State', () => 
 
       const cancelledDetails = getEvalRunDetails(cancelTestId);
       expect(cancelledDetails?.status).toBe('CANCELLED');
+    });
+  });
+
+  describe('5. Copy & UX Polish (ArgosX Issue 4)', () => {
+    it('verifies that RedTeamPage copy uses separated "call sets" instead of run-together "callsets"', () => {
+      const redTeamPath = path.resolve(process.cwd(), 'src', 'pages', 'RedTeamPage.tsx');
+      const content = fs.readFileSync(redTeamPath, 'utf8');
+      expect(content).toContain('choose benchmark call sets');
+      expect(content).not.toContain('choose benchmark callsets');
     });
   });
 });
