@@ -1,4 +1,4 @@
-import { canonicalJson, sha256Hex, GENESIS_HASH } from './canonical.mjs';
+import { canonicalJson, sha256Hex, GENESIS_HASH, constantTimeEqual } from './canonical.mjs';
 import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from './signing.mjs';
 import { getLatestEvent, insertEvent, getAllEvents, getDb, getAuditEvidence } from './db.mjs';
 import { computeCanonicalPolicyFingerprint } from './attestation.mjs';
@@ -183,7 +183,7 @@ export async function verifyEvidenceBundle(bundle) {
     }
 
     // Check chain link
-    if (e.previous_event_hash !== expectedPreviousHash) {
+    if (!constantTimeEqual(e.previous_event_hash, expectedPreviousHash)) {
       return {
         status: 'TAMPERED',
         valid: false,
@@ -219,7 +219,7 @@ export async function verifyEvidenceBundle(bundle) {
       recomputed = await sha256Hex(raw);
     }
 
-    if (recomputed !== e.event_hash) {
+    if (!constantTimeEqual(recomputed, e.event_hash)) {
       return {
         status: 'TAMPERED',
         valid: false,

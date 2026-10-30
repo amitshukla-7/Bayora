@@ -1,4 +1,4 @@
-import { canonicalJson, sha256Hex, GENESIS_HASH } from './canonical.ts';
+import { canonicalJson, sha256Hex, GENESIS_HASH, constantTimeEqual } from './canonical.ts';
 import { verifySignatureP256, KEY_LABEL } from './signing.ts';
 import type { EvidenceEvent } from '../types.ts';
 
@@ -178,7 +178,7 @@ export async function verifyBundle(bundle: unknown): Promise<BundleVerificationR
     const expectedPrevHash = i === 0 ? GENESIS_HASH : ledger[i - 1].event_hash;
 
     // Check pointer
-    if (current.previous_event_hash !== expectedPrevHash) {
+    if (!constantTimeEqual(current.previous_event_hash, expectedPrevHash)) {
       return {
         status: 'TAMPERED',
         firstBadBlockIndex: i,
@@ -200,7 +200,7 @@ export async function verifyBundle(bundle: unknown): Promise<BundleVerificationR
     };
     const calculatedHash = await sha256Hex(canonicalJson(eventBody));
 
-    if (calculatedHash !== current.event_hash) {
+    if (!constantTimeEqual(calculatedHash, current.event_hash)) {
       return {
         status: 'TAMPERED',
         firstBadBlockIndex: i,

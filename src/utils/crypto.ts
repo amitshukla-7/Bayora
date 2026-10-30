@@ -7,29 +7,54 @@ import type {
   SignedCheckpoint,
 } from '../types';
 
+const PROTOTYPE_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const MAX_CANONICAL_DEPTH = 64;
+
 /**
  * Deterministically serialize any JavaScript value to canonical JSON (RFC 8785).
  * Keys in objects are sorted lexicographically at all nested levels.
  * Numbers and booleans maintain standard JSON formatting.
+ * Rejects prototype pollution keys and caps recursion depth.
  */
-export function canonicalJson(data: any): string {
+export function canonicalJson(data: any, depth = 0): string {
+  if (depth > MAX_CANONICAL_DEPTH) {
+    throw new Error('Maximum canonicalization depth exceeded (depth limit 64)');
+  }
+
   if (data === null || typeof data !== 'object') {
     return JSON.stringify(data);
   }
 
   if (Array.isArray(data)) {
-    return '[' + data.map((item) => canonicalJson(item)).join(',') + ']';
+    return '[' + data.map((item) => canonicalJson(item, depth + 1)).join(',') + ']';
   }
 
-  const keys = Object.keys(data).sort();
+  const keys = Object.keys(data).filter((k) => !PROTOTYPE_POLLUTION_KEYS.has(k)).sort();
   const entries: string[] = [];
   for (const key of keys) {
     if (data[key] !== undefined) {
-      entries.push(`${JSON.stringify(key)}:${canonicalJson(data[key])}`);
+      entries.push(`${JSON.stringify(key)}:${canonicalJson(data[key], depth + 1)}`);
     }
   }
 
   return '{' + entries.join(',') + '}';
+}
+
+/**
+ * Constant-time string equality comparison to prevent timing side channels (CWE-208)
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aLen = a.length;
+  const bLen = b.length;
+  let mismatch = aLen ^ bLen;
+  const maxLen = Math.max(aLen, bLen);
+  for (let i = 0; i < maxLen; i++) {
+    const charA = i < aLen ? a.charCodeAt(i) : 0;
+    const charB = i < bLen ? b.charCodeAt(i) : 0;
+    mismatch |= (charA ^ charB);
+  }
+  return mismatch === 0;
 }
 
 /**
@@ -309,8 +334,8 @@ export async function verifyEvidenceChain(events: EvidenceEvent[]): Promise<Chai
     const current = events[i];
     const expectedPrevHash = i === 0 ? GENESIS_HASH : events[i - 1].event_hash;
 
-    // Check pointer integrity
-    if (current.previous_event_hash !== expectedPrevHash) {
+    // Check pointer integrity using constant-time comparison
+    if (!constantTimeEqual(current.previous_event_hash, expectedPrevHash)) {
       return {
         status: 'TAMPERED',
         totalEvents: events.length,
@@ -340,7 +365,7 @@ export async function verifyEvidenceChain(events: EvidenceEvent[]): Promise<Chai
       current.previous_event_hash
     );
 
-    if (calculatedHash !== current.event_hash) {
+    if (!constantTimeEqual(calculatedHash, current.event_hash)) {
       return {
         status: 'TAMPERED',
         totalEvents: events.length,

@@ -1,3 +1,4 @@
+import { constantTimeEqual } from './canonical.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import path, { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -945,7 +946,7 @@ export function verifyAuditLedger() {
     }
 
     // Continuity check
-    if (r.previous_event_hash !== expectedPrevHash) {
+    if (!constantTimeEqual(r.previous_event_hash, expectedPrevHash)) {
       return {
         verified: false,
         brokenSequence: r.sequence,
@@ -955,7 +956,7 @@ export function verifyAuditLedger() {
 
     // Recomputed digest check
     const recomputed = sha256(r.previous_event_hash + r.payload_canonical + r.timestamp);
-    if (recomputed !== r.event_hash) {
+    if (!constantTimeEqual(recomputed, r.event_hash)) {
       return {
         verified: false,
         brokenSequence: r.sequence,

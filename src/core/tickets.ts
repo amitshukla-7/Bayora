@@ -1,3 +1,4 @@
+import { constantTimeEqual } from './canonical.ts';
 /**
  * Pure Evaluation Ticket Verification and Expiry Core
  */
@@ -40,7 +41,7 @@ export function validateTicket(
   }
 
   // Instant invalidation on configuration fingerprint change
-  if (ticket.manifestFingerprint !== currentFingerprint) {
+  if (!constantTimeEqual(ticket.manifestFingerprint, currentFingerprint)) {
     return {
       valid: false,
       reason: `Fingerprint mismatch: ticket was issued for ${ticket.manifestFingerprint.slice(0, 10)}..., current is ${currentFingerprint.slice(0, 10)}...`,
