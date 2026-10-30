@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { canonicalJson, constantTimeEqual, GENESIS_HASH, sha256Hex } from '../src/core/canonical';
 import { detectCanaryLeak } from '../src/core/leakDetector';
 import { verifyEvidenceChain, hashEventPayload } from '../src/utils/crypto';
@@ -227,6 +229,35 @@ describe('Security Hardening Test Suite (Enterprise Verification)', () => {
         expect(parseResult.data.name).not.toContain('\x00');
         expect(parseResult.data.name).not.toContain('\x1b');
         expect(parseResult.data.name).not.toContain('\x7f');
+      }
+    });
+  });
+
+  describe('5. SEO & Social Preview Metadata (ArgosX Issue 2)', () => {
+    it('verifies that index.html contains complete Open Graph and social preview metadata', () => {
+      const htmlPath = path.resolve(process.cwd(), 'index.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      // og:title
+      expect(html).toMatch(/<meta\s+property=["']og:title["']\s+content=["'][^"']+["']/i);
+      // og:description
+      expect(html).toMatch(/<meta\s+property=["']og:description["']\s+content=["'][^"']+["']/i);
+      // og:image
+      expect(html).toMatch(/<meta\s+property=["']og:image["']\s+content=["'][^"']+["']/i);
+      // og:type
+      expect(html).toMatch(/<meta\s+property=["']og:type["']\s+content=["']website["']/i);
+      // twitter cards
+      expect(html).toMatch(/<meta\s+name=["']twitter:card["']\s+content=["'][^"']+["']/i);
+      expect(html).toMatch(/<meta\s+name=["']twitter:title["']\s+content=["'][^"']+["']/i);
+      expect(html).toMatch(/<meta\s+name=["']twitter:description["']\s+content=["'][^"']+["']/i);
+      expect(html).toMatch(/<meta\s+name=["']twitter:image["']\s+content=["'][^"']+["']/i);
+
+      // Verify public og-image asset exists
+      const imageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']https?:\/\/[^/]+(\/[^"']+)["']/i);
+      expect(imageMatch).not.toBeNull();
+      if (imageMatch) {
+        const publicFile = path.resolve(process.cwd(), 'public', imageMatch[1].replace(/^\//, ''));
+        expect(fs.existsSync(publicFile)).toBe(true);
       }
     });
   });
