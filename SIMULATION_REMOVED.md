@@ -36,3 +36,4 @@ npm run demo:check
 node -e "import('./server/db.mjs').then(({getDashboardSummary}) => console.log(getDashboardSummary()))"
 # Result: ribbonValid === true, all metrics aggregated purely from SQLite rows.
 ```
+

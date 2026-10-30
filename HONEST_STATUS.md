@@ -80,3 +80,4 @@ This document provides a completely honest, no-sugarcoating status of what works
 2. **DO NOT** claim POL-004 uses a BERT or RoBERTa classifier (it uses a weighted keyword heuristic, clearly disclosed).
 3. **DO NOT** claim you have a dynamic RAG / vector database with semantic search (it is not implemented).
 4. **DO NOT** claim attack prompts are dynamically synthesized on the fly (they are curated from an enterprise benchmark dataset).
+

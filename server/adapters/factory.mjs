@@ -47,6 +47,8 @@ export function syncModelsToDatabase() {
 
   const now = new Date().toISOString();
   for (const m of models) {
+    const isVerifiedLocal = m.model_identifier === 'smollm:135m';
+    const status = isVerifiedLocal ? 'Active' : (m.api_key_env && process.env[m.api_key_env] ? 'Active' : 'Unverified');
     upsert.run({
       id: m.id,
       name: m.name || m.id,
@@ -57,7 +59,7 @@ export function syncModelsToDatabase() {
       base_url: m.base_url || null,
       api_key_env: m.api_key_env || null,
       parameters: typeof m.parameters === 'object' ? JSON.stringify(m.parameters) : m.parameters || null,
-      status: 'Active',
+      status,
       registered_at: now
     });
   }

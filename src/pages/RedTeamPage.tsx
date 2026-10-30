@@ -52,8 +52,11 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
   onRefreshData,
   onOpenUploadModel,
 }) => {
-  // Model selection
-  const defaultModelIds = models.filter(m => m.status === 'Active').slice(0, 2).map(m => m.id);
+  // Model selection: prioritize verified active live model (ollama-smollm)
+  const activeSmollm = models.find(m => (m.id === 'ollama-smollm' || m.identifier === 'smollm:135m') && m.status === 'Active');
+  const defaultModelIds = activeSmollm
+    ? [activeSmollm.id]
+    : models.filter(m => m.status === 'Active').slice(0, 1).map(m => m.id);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>(
     defaultModelIds.length > 0 ? defaultModelIds : (models[0] ? [models[0].id] : [])
   );
@@ -364,6 +367,27 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
 
       await onRefreshData();
     } catch (err: any) {
+      if (activeRunId) {
+        try {
+          const run = await fetchEvalRunStatus(activeRunId);
+          if (run && (run.status === 'COMPLETED' || run.cases_done >= run.total_cases)) {
+            setIsExecuting(false);
+            setActiveRunId(null);
+            setProgressPercent(100);
+            setCompletedRun({
+              id: run.id,
+              name: run.name || `${chosenPreset?.title || 'Security'} Evaluation`,
+              passedCount: (run as any).passed_count || 0,
+              warningCount: (run as any).warning_count || 0,
+              failedCount: (run as any).failed_count || 0,
+              totalCases: run.total_cases || (maxCases * selectedModelIds.length),
+              riskScore: (run as any).risk_score || 0
+            });
+            await onRefreshData();
+            return;
+          }
+        } catch {}
+      }
       setErrorMsg(err.message || 'Evaluation run failed.');
       setIsExecuting(false);
       setActiveRunId(null);

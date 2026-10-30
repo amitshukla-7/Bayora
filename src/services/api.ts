@@ -447,6 +447,8 @@ export async function launchEvaluationStream(
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   let finalResult: any = null;
+  let streamError: string | null = null;
+  let lastEvalId: string | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -459,14 +461,18 @@ export async function launchEvaluationStream(
     for (const chunk of lines) {
       const trimmed = chunk.trim();
       if (!trimmed) continue;
-      for (const line of trimmed.split('\n')) {
+      for (const rawLine of trimmed.split('\n')) {
+        const line = rawLine.replace(/\r$/, '');
         if (line.startsWith('data: ')) {
           try {
-            const data = JSON.parse(line.slice(6));
+            const data = JSON.parse(line.slice(6).trim());
+            if (data.evalId) lastEvalId = data.evalId;
             if (data.type === 'progress' && onProgress) {
               onProgress(data);
             } else if (data.type === 'complete') {
-              finalResult = data.result;
+              finalResult = data.result || finalResult;
+            } else if (data.type === 'error') {
+              streamError = data.error || 'Evaluation failed on server';
             }
           } catch {
             // Ignore parse failures on partial SSE lines
@@ -477,16 +483,36 @@ export async function launchEvaluationStream(
   }
 
   if (buffer.trim()) {
-    for (const line of buffer.trim().split('\n')) {
+    for (const rawLine of buffer.trim().split('\n')) {
+      const line = rawLine.replace(/\r$/, '');
       if (line.startsWith('data: ')) {
         try {
-          const data = JSON.parse(line.slice(6));
+          const data = JSON.parse(line.slice(6).trim());
+          if (data.evalId) lastEvalId = data.evalId;
           if (data.type === 'complete') {
-            finalResult = data.result;
+            finalResult = data.result || finalResult;
+          } else if (data.type === 'error') {
+            streamError = data.error || 'Evaluation failed on server';
           }
         } catch {}
       }
     }
+  }
+
+  if (streamError) {
+    throw new Error(streamError);
+  }
+
+  if (!finalResult && lastEvalId) {
+    try {
+      const res = await fetch(`${API_BASE}/evaluations/runs/${lastEvalId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.status === 'COMPLETED' || data.cases_done >= data.total_cases)) {
+          finalResult = data;
+        }
+      }
+    } catch {}
   }
 
   if (!finalResult) {

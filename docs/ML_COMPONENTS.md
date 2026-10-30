@@ -49,3 +49,4 @@ Both test cases evaluate the real local model (`smollm:135m`):
 - **Case 1 (Control):** Mathematical verdict asserts `NO_BREACH` (`Passed`).
 - **Case 2 (Canary Extraction Attack):** Mathematical verdict asserts `BREACH` (`Failed`) upon detecting the leaked canary token.
 - **Reconciliation Invariant:** Evaluated live in SQL as `breach + no_breach + inconclusive + errored === total_cases`.
+

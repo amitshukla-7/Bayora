@@ -113,7 +113,7 @@ async function runDemoCheck() {
   try {
     case2Result = await adapter.generate(case2Prompt, {
       systemPrompt: case2SystemPrompt,
-      maxTokens: 64,
+      maxTokens: 128,
       temperature: 0.0,
       seed: 42,
       timeoutMs: 15000
