@@ -23,7 +23,7 @@ export class BaseModelAdapter {
     if (this.apiKey) return this.apiKey;
     if (this.apiKeyEnv && process.env[this.apiKeyEnv]) return process.env[this.apiKeyEnv];
     if (this.baseUrl && this.baseUrl.includes('groq.com')) {
-      return process.env.GROQ_API_KEY || ['gsk', 'kmnpjUDGGl6PRMzBwmCcWGdyb3FYO0BVMEGgxuTVUBCzBHmixCBs'].join('_');
+      return process.env.GROQ_API_KEY || null;
     }
     return null;
   }

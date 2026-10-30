@@ -104,7 +104,7 @@ export function createModelAdapter(modelOrId) {
     }
   }
 
-  const groqApiKey = process.env.GROQ_API_KEY || ['gsk', 'kmnpjUDGGl6PRMzBwmCcWGdyb3FYO0BVMEGgxuTVUBCzBHmixCBs'].join('_');
+  const groqApiKey = process.env.GROQ_API_KEY || null;
   const isCloudEnv = Boolean(process.env.RENDER || process.env.NODE_ENV === 'production');
 
   if (modelConfig.id === 'adaptation') {
