@@ -261,5 +261,19 @@ describe('Security Hardening Test Suite (Enterprise Verification)', () => {
       }
     });
   });
+
+  describe('6. Canonical Link Tag (ArgosX Issue 3)', () => {
+    it('verifies that index.html contains a valid rel="canonical" link tag', () => {
+      const htmlPath = path.resolve(process.cwd(), 'index.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      expect(html).toMatch(/<link\s+rel=["']canonical["']\s+href=["']https?:\/\/[^"']+["']\s*\/?>/i);
+      const canonicalMatch = html.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i);
+      expect(canonicalMatch).not.toBeNull();
+      if (canonicalMatch) {
+        expect(canonicalMatch[1]).toBe('https://bayora-et0g.onrender.com');
+      }
+    });
+  });
 });
 
