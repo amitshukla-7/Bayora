@@ -5,6 +5,7 @@ import { canonicalJson, constantTimeEqual, GENESIS_HASH, sha256Hex } from '../sr
 import { detectCanaryLeak } from '../src/core/leakDetector';
 import { verifyEvidenceChain, hashEventPayload } from '../src/utils/crypto';
 import { CreateModelSchema } from '../server/models/service.mjs';
+import { app } from '../server/index.mjs';
 import type { EvidenceEvent } from '../src/types';
 
 describe('Security Hardening Test Suite (Enterprise Verification)', () => {
@@ -273,6 +274,20 @@ describe('Security Hardening Test Suite (Enterprise Verification)', () => {
       if (canonicalMatch) {
         expect(canonicalMatch[1]).toBe('https://bayora-et0g.onrender.com');
       }
+    });
+  });
+
+  describe('7. A11y Scanner & Content Security Policy (ArgosX Issue 1)', () => {
+    it('verifies that CSP allows automated a11y testing engines (axe-core) to execute without being blocked', async () => {
+      const res = await app.request('/');
+      const csp = res.headers.get('content-security-policy') || '';
+
+      // Must allow script execution for testing payloads / axe-core injection
+      expect(csp).toContain('script-src');
+      expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
+      expect(csp).toMatch(/script-src[^;]*'unsafe-eval'/);
+      expect(csp).toMatch(/script-src[^;]*(cdnjs\.cloudflare\.com|jsdelivr\.net|unpkg\.com)/);
+      expect(csp).toMatch(/worker-src[^;]*blob:/);
     });
   });
 });

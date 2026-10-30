@@ -122,11 +122,13 @@ app.use('*', async (c, next) => {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com blob: data:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
     "connect-src 'self' https://api.groq.com https://api.openai.com https://api.anthropic.com",
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
