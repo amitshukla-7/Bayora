@@ -74,6 +74,10 @@ export const MIGRATIONS = [
           model_identifier TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'QUEUED', -- QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
           total_cases INTEGER NOT NULL DEFAULT 0,
+          cases_total INTEGER NOT NULL DEFAULT 0,
+          cases_done INTEGER NOT NULL DEFAULT 0,
+          cases_errored INTEGER NOT NULL DEFAULT 0,
+          samples_done INTEGER NOT NULL DEFAULT 0,
           passed_count INTEGER NOT NULL DEFAULT 0,
           warning_count INTEGER NOT NULL DEFAULT 0,
           failed_count INTEGER NOT NULL DEFAULT 0,
@@ -84,6 +88,10 @@ export const MIGRATIONS = [
           policy_pack_version TEXT NOT NULL DEFAULT '1.0.0',
           config_fingerprint TEXT,
           git_commit TEXT,
+          started_at TEXT,
+          completed_at TEXT,
+          config_snapshot TEXT DEFAULT '{}',
+          error_detail TEXT,
           is_synthetic INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL
         );
@@ -99,6 +107,8 @@ export const MIGRATIONS = [
           models TEXT NOT NULL, -- JSON array of model IDs
           categories TEXT NOT NULL, -- JSON array of categories
           total_cases INTEGER NOT NULL DEFAULT 0,
+          cases_done INTEGER NOT NULL DEFAULT 0,
+          cases_errored INTEGER NOT NULL DEFAULT 0,
           passed_count INTEGER NOT NULL DEFAULT 0,
           warning_count INTEGER NOT NULL DEFAULT 0,
           failed_count INTEGER NOT NULL DEFAULT 0,
@@ -106,6 +116,8 @@ export const MIGRATIONS = [
           execution_duration_ms INTEGER NOT NULL DEFAULT 0,
           estimated_duration TEXT,
           execution_settings TEXT DEFAULT '{}',
+          error_detail TEXT,
+          completed_at TEXT,
           is_synthetic INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL
         );
@@ -546,6 +558,7 @@ export const MIGRATIONS = [
 
       // Columns for evaluations
       try { db.exec(`ALTER TABLE evaluations ADD COLUMN cases_done INTEGER NOT NULL DEFAULT 0;`); } catch {}
+      try { db.exec(`ALTER TABLE evaluations ADD COLUMN cases_errored INTEGER NOT NULL DEFAULT 0;`); } catch {}
       try { db.exec(`ALTER TABLE evaluations ADD COLUMN error_detail TEXT;`); } catch {}
       try { db.exec(`ALTER TABLE evaluations ADD COLUMN completed_at TEXT;`); } catch {}
 

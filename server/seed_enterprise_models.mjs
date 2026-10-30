@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export function seedEnterpriseModelsAndEvaluations() {
-  const db = getDb();
+export function seedEnterpriseModelsAndEvaluations(dbInstance) {
+  const db = dbInstance || getDb();
 
   console.log('[SEED] Seeding enterprise model registry and benchmark evaluation history...');
 

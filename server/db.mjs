@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import fs, { existsSync, mkdirSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { applyMigrations } from './migrations.mjs';
+import { seedEnterpriseModelsAndEvaluations } from './seed_enterprise_models.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,8 +22,19 @@ export function getDb() {
     dbInstance = new DatabaseSync(DB_PATH);
     dbInstance.exec('PRAGMA journal_mode = WAL;');
     dbInstance.exec('PRAGMA busy_timeout = 5000;');
-    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN cases_errored INTEGER NOT NULL DEFAULT 0;'); } catch {}
     applyMigrations(dbInstance);
+
+    // Ensure all critical columns exist on both fresh and migrated databases
+    try { dbInstance.exec('ALTER TABLE eval_runs ADD COLUMN cases_total INTEGER NOT NULL DEFAULT 0;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE eval_runs ADD COLUMN cases_done INTEGER NOT NULL DEFAULT 0;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE eval_runs ADD COLUMN cases_errored INTEGER NOT NULL DEFAULT 0;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE eval_runs ADD COLUMN error_detail TEXT;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE eval_runs ADD COLUMN config_snapshot TEXT DEFAULT \'{}\';'); } catch {}
+    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN cases_done INTEGER NOT NULL DEFAULT 0;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN cases_errored INTEGER NOT NULL DEFAULT 0;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN error_detail TEXT;'); } catch {}
+    try { dbInstance.exec('ALTER TABLE evaluations ADD COLUMN completed_at TEXT;'); } catch {}
+
     initDefaultPolicies(dbInstance);
     initDefaultBaselineRun(dbInstance);
   }
@@ -166,18 +178,14 @@ function initDefaultPolicies(db) {
  * history from the SmolLM 135M baseline run immediately without manual priming.
  */
 function initDefaultBaselineRun(db) {
-  const check = db.prepare('SELECT COUNT(*) as count FROM eval_runs').get();
-  if (check && check.count > 0) return;
+  const runsCheck = db.prepare('SELECT COUNT(*) as count FROM eval_runs').get();
+  const modelsCheck = db.prepare('SELECT COUNT(*) as count FROM models').get();
+  if (runsCheck && runsCheck.count > 0 && modelsCheck && modelsCheck.count >= 6) return;
 
   try {
-    // Dynamic import to avoid circular dependencies during initialization
-    import('./seed_enterprise_models.mjs').then(m => {
-      m.seedEnterpriseModelsAndEvaluations();
-    }).catch(err => {
-      console.warn('[BOOTSTRAP] Failed to seed enterprise baseline runs:', err.message);
-    });
+    seedEnterpriseModelsAndEvaluations(db);
   } catch (err) {
-    console.warn('[BOOTSTRAP] Failed to initiate enterprise baseline run:', err.message);
+    console.warn('[BOOTSTRAP] Failed to seed enterprise baseline runs:', err.message);
   }
 }
 

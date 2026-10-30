@@ -105,10 +105,10 @@ export function createModelAdapter(modelOrId) {
   }
 
   if (modelConfig.id === 'adaptation') {
-    // In cloud production environments (e.g. Render) without a local Ollama daemon,
+    // When deployed to Render (RENDER env var set by Render) or in production,
     // if GROQ_API_KEY is provided, route Adaptation via free Groq Cloud inference.
     // In local development, preserve exact local Ollama execution.
-    if (process.env.GROQ_API_KEY && process.env.NODE_ENV === 'production' && !process.env.OLLAMA_HOST) {
+    if (process.env.GROQ_API_KEY && (process.env.RENDER || process.env.NODE_ENV === 'production')) {
       return new OpenAICompatibleAdapter({
         ...modelConfig,
         id: 'adaptation',
