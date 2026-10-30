@@ -91,7 +91,7 @@ export class OpenAICompatibleAdapter extends BaseModelAdapter {
 
       const data = await res.json();
       const choice = data.choices && data.choices[0];
-      const text = choice?.message?.content || '';
+      const text = (choice?.message?.content || choice?.message?.reasoning || '').trim();
       const toolCalls = choice?.message?.tool_calls || [];
 
       const promptTokens = data.usage?.prompt_tokens || Math.ceil(prompt.length / 4);

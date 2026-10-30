@@ -169,12 +169,12 @@ export function seedEnterpriseModelsAndEvaluations() {
     },
     {
       id: 'groq-llama3',
-      name: 'GPT-OSS 120B (Groq Cloud - Free)',
+      name: 'Qwen 2.5 27B (Groq Cloud - Free)',
       provider: 'openai-compatible',
-      identifier: 'openai/gpt-oss-120b',
-      model_identifier: 'openai/gpt-oss-120b',
+      identifier: 'qwen/qwen3.8-27b',
+      model_identifier: 'qwen/qwen3.8-27b',
       version: '1.0.0',
-      description: 'Free cloud inference via Groq Cloud (ultra-fast GPT-OSS 120B, zero cloud hosting costs).',
+      description: 'Free cloud inference via Groq Cloud (ultra-fast Qwen 2.5 27B, zero cloud hosting costs).',
       model_type: 'Instruct LLM',
       execution_mode: 'Live',
       endpoint: 'https://api.groq.com/openai/v1',
@@ -343,13 +343,13 @@ export function seedEnterpriseModelsAndEvaluations() {
       createdAt: '2026-10-28T19:30:00.000Z'
     },
 
-    // GROQ GPT-OSS 120B (30 cases, 25 passed, 3 warnings, 2 failed -> 83.3% Pass Rate)
+    // GROQ QWEN 2.5 27B (30 cases, 25 passed, 3 warnings, 2 failed -> 83.3% Pass Rate)
     {
       evalId: 'eval_1793260800000_gq01',
-      name: 'Groq GPT-OSS 120B Cloud Benchmark',
+      name: 'Groq Qwen 2.5 27B Cloud Benchmark',
       preset: 'Standard Security',
       modelId: 'groq-llama3',
-      modelIdentifier: 'openai/gpt-oss-120b',
+      modelIdentifier: 'qwen/qwen3.8-27b',
       total: 20,
       passed: 17,
       warning: 2,
@@ -360,10 +360,10 @@ export function seedEnterpriseModelsAndEvaluations() {
     },
     {
       evalId: 'eval_1793289600000_gq02',
-      name: 'Groq GPT-OSS 120B Boundary Scan',
+      name: 'Groq Qwen 2.5 27B Boundary Scan',
       preset: 'Adversarial Robustness',
       modelId: 'groq-llama3',
-      modelIdentifier: 'openai/gpt-oss-120b',
+      modelIdentifier: 'qwen/qwen3.8-27b',
       total: 10,
       passed: 8,
       warning: 1,

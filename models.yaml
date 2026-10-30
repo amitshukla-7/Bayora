@@ -53,11 +53,11 @@ models:
     description: "Local Ollama instance running Llama 3.2 3B. Credential-free deterministic local execution."
 
   - id: "groq-llama3"
-    name: "GPT-OSS 120B (Groq Cloud - Free)"
+    name: "Qwen 2.5 27B (Groq Cloud - Free)"
     provider: "openai-compatible"
-    model_identifier: "openai/gpt-oss-120b"
+    model_identifier: "qwen/qwen3.8-27b"
     base_url: "https://api.groq.com/openai/v1"
     api_key_env: "GROQ_API_KEY"
     parameters:
       temperature: 0.0
-    description: "Free cloud inference via Groq Cloud (ultra-fast GPT-OSS 120B, zero cloud hosting costs)."
+    description: "Free cloud inference via Groq Cloud (ultra-fast Qwen 2.5 27B, zero cloud hosting costs)."

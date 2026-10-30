@@ -115,8 +115,8 @@ export function createModelAdapter(modelOrId) {
         name: 'Adaptation',
         baseUrl: 'https://api.groq.com/openai/v1',
         apiKey: process.env.GROQ_API_KEY,
-        modelIdentifier: 'openai/gpt-oss-120b',
-        identifier: 'openai/gpt-oss-120b'
+        modelIdentifier: 'qwen/qwen3.8-27b',
+        identifier: 'qwen/qwen3.8-27b'
       });
     }
   }
