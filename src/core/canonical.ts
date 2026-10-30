@@ -38,3 +38,20 @@ export async function sha256Hex(content: string): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/**
+ * Constant-time string equality comparison to prevent timing side channels (CWE-208)
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aLen = a.length;
+  const bLen = b.length;
+  let mismatch = aLen ^ bLen;
+  const maxLen = Math.max(aLen, bLen);
+  for (let i = 0; i < maxLen; i++) {
+    const charA = i < aLen ? a.charCodeAt(i) : 0;
+    const charB = i < bLen ? b.charCodeAt(i) : 0;
+    mismatch |= (charA ^ charB);
+  }
+  return mismatch === 0;
+}
