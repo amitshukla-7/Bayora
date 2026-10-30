@@ -11,11 +11,22 @@ lerna-debug.log*
 .env
 .env.*
 *.env
+*.pem
+*.key
+*.cert
+*.crt
 
+# Dependencies & Build Outputs
 node_modules
 dist
 dist-ssr
+coverage
 *.local
+*.tmp
+
+# Scratch & Test Artifacts
+test_*_results.json
+Bayora_Sentinel_Chat_Export.md
 
 # Editor directories and files
 .vscode/*
