@@ -29,6 +29,7 @@ import { TopBar } from './components/TopBar';
 import { CommandPalette } from './components/CommandPalette';
 import { AuthModal } from './components/AuthModal';
 
+import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RedTeamPage } from './pages/RedTeamPage';
 import { ModelsPage } from './pages/ModelsPage';
@@ -59,9 +60,12 @@ export function App() {
   // Global Dialogs
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [isQuickLoggingIn, setIsQuickLoggingIn] = useState(false);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Main Data States
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -159,18 +163,13 @@ export function App() {
       const me = await fetchCurrentUserApi();
       if (me) {
         setCurrentUser(me);
-      } else {
-        // Automatic authentication for primary profile (amitshukla@1234 / amitshukla7)
-        // Ensures immediate access to all existing data out of the box
-        const loginRes = await loginApi('amitshukla@1234', 'amitshukla7').catch(() => null);
-        if (loginRes?.user) {
-          setCurrentUser(loginRes.user);
-        }
+        await loadAllData();
       }
     } catch {
-      // Continue gracefully
+      // Continue to landing page if not authenticated
     } finally {
-      await loadAllData();
+      setIsCheckingAuth(false);
+      setIsLoading(false);
     }
   };
 
@@ -189,14 +188,30 @@ export function App() {
   const handleLogout = async () => {
     await logoutApi();
     setCurrentUser(null);
-    setIsAuthModalOpen(true);
-    await loadAllData();
+    setIsAuthModalOpen(false);
   };
 
   const handleAuthSuccess = async (user: UserProfile) => {
     setCurrentUser(user);
     setIsAuthModalOpen(false);
     await loadAllData();
+  };
+
+  const handleQuickLoginPrimary = async () => {
+    setIsQuickLoggingIn(true);
+    try {
+      const res = await loginApi('amitshukla@1234', 'amitshukla7');
+      if (res?.user) {
+        setCurrentUser(res.user);
+        await loadAllData();
+      }
+    } catch (err) {
+      console.error('Quick login failed:', err);
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+    } finally {
+      setIsQuickLoggingIn(false);
+    }
   };
 
   const handleNavigate = (page: PageId, extraId?: string) => {
@@ -209,6 +224,40 @@ export function App() {
     }
     setActivePage(page);
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#f8faff] text-xs text-slate-400 gap-3">
+        <div className="w-8 h-8 border-2 border-[#9B7DE8] border-t-transparent rounded-full animate-spin" />
+        <span className="font-mono text-slate-500">Initializing Bayora Security Engine...</span>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <LandingPage
+          onOpenLogin={() => {
+            setAuthModalMode('login');
+            setIsAuthModalOpen(true);
+          }}
+          onOpenRegister={() => {
+            setAuthModalMode('register');
+            setIsAuthModalOpen(true);
+          }}
+          onQuickLoginPrimary={handleQuickLoginPrimary}
+          isLoggingIn={isQuickLoggingIn}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          initialMode={authModalMode}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden selection:bg-[#9B7DE8]/30 selection:text-slate-900">
@@ -339,6 +388,7 @@ export function App() {
       {/* Global Authentication Modal (Login / Sign Up) */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
       />
