@@ -20,7 +20,6 @@ import {
   fetchSettings,
   resetDemoData,
   fetchCurrentUserApi,
-  loginApi,
   logoutApi
 } from './services/api';
 
@@ -61,7 +60,6 @@ export function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
-  const [isQuickLoggingIn, setIsQuickLoggingIn] = useState(false);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -197,23 +195,6 @@ export function App() {
     await loadAllData();
   };
 
-  const handleQuickLoginPrimary = async () => {
-    setIsQuickLoggingIn(true);
-    try {
-      const res = await loginApi('amitshukla@1234', 'amitshukla7');
-      if (res?.user) {
-        setCurrentUser(res.user);
-        await loadAllData();
-      }
-    } catch (err) {
-      console.error('Quick login failed:', err);
-      setAuthModalMode('login');
-      setIsAuthModalOpen(true);
-    } finally {
-      setIsQuickLoggingIn(false);
-    }
-  };
-
   const handleNavigate = (page: PageId, extraId?: string) => {
     if (page === 'evaluations' && extraId) {
       if (extraId.startsWith('eval_')) {
@@ -246,8 +227,6 @@ export function App() {
             setAuthModalMode('register');
             setIsAuthModalOpen(true);
           }}
-          onQuickLoginPrimary={handleQuickLoginPrimary}
-          isLoggingIn={isQuickLoggingIn}
         />
         <AuthModal
           isOpen={isAuthModalOpen}
