@@ -1,0 +1,7 @@
+# Bayora Intelligence Center / SentinelFlow Security Policy (RFC 9116)
+Contact: mailto:security@bayora.enterprise
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://bayora.onrender.com/.well-known/security.txt
+Policy: https://github.com/amitshukla-7/Bayora/blob/main/SECURITY.md
+Hiring: https://bayora.enterprise/careers
