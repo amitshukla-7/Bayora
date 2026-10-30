@@ -110,6 +110,7 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
     passedCount: number;
     warningCount: number;
     failedCount: number;
+    erroredCount?: number;
     totalCases: number;
     riskScore: number;
   } | null>(null);
@@ -362,6 +363,7 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
           passedCount: result?.passedCount ?? 0,
           warningCount: result?.warningCount ?? 0,
           failedCount: result?.failedCount ?? 0,
+          erroredCount: result?.erroredCount ?? 0,
           totalCases: result?.totalCases ?? (maxCases * selectedModelIds.length),
           riskScore: result?.riskScore ?? 0
         });
@@ -382,6 +384,7 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
               passedCount: (run as any).passed_count || 0,
               warningCount: (run as any).warning_count || 0,
               failedCount: (run as any).failed_count || 0,
+              erroredCount: (run as any).cases_errored || 0,
               totalCases: run.total_cases || (maxCases * selectedModelIds.length),
               riskScore: (run as any).risk_score || 0
             });
@@ -499,7 +502,11 @@ export const RedTeamPage: React.FC<RedTeamPageProps> = ({
                 Completed {completedRun.totalCases} test cases:{' '}
                 <span className="font-semibold text-emerald-700">{completedRun.passedCount} Passed</span>,{' '}
                 <span className="font-semibold text-amber-700">{completedRun.warningCount} Warnings</span>,{' '}
-                <span className="font-semibold text-red-700">{completedRun.failedCount} Failures</span>. Average Risk: {completedRun.riskScore}/100.
+                <span className="font-semibold text-red-700">{completedRun.failedCount} Failures</span>
+                {Boolean(completedRun.erroredCount) && (
+                  <span>, <span className="font-semibold text-rose-700">{completedRun.erroredCount} Errored</span></span>
+                )}
+                . Average Risk: {completedRun.riskScore}/100.
               </p>
             </div>
           </div>

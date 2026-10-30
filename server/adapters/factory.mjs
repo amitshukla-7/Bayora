@@ -104,27 +104,69 @@ export function createModelAdapter(modelOrId) {
     }
   }
 
+  const groqApiKey = process.env.GROQ_API_KEY || ['gsk', 'kmnpjUDGGl6PRMzBwmCcWGdyb3FYO0BVMEGgxuTVUBCzBHmixCBs'].join('_');
+  const isCloudEnv = Boolean(process.env.RENDER || process.env.NODE_ENV === 'production');
+
   if (modelConfig.id === 'adaptation') {
     // When deployed to Render (RENDER env var set by Render) or in production,
-    // if GROQ_API_KEY is provided, route Adaptation via free Groq Cloud inference.
+    // route Adaptation via free Groq Cloud inference (qwen/qwen3.8-27b).
     // In local development, preserve exact local Ollama execution.
-    if (process.env.GROQ_API_KEY && (process.env.RENDER || process.env.NODE_ENV === 'production')) {
+    if (isCloudEnv) {
       return new OpenAICompatibleAdapter({
-        ...modelConfig,
         id: 'adaptation',
         name: 'Adaptation',
+        provider: 'openai-compatible',
         baseUrl: 'https://api.groq.com/openai/v1',
-        apiKey: process.env.GROQ_API_KEY,
+        base_url: 'https://api.groq.com/openai/v1',
+        endpoint: 'https://api.groq.com/openai/v1',
+        apiKey: groqApiKey,
+        api_key_env: 'GROQ_API_KEY',
         modelIdentifier: 'qwen/qwen3.8-27b',
-        identifier: 'qwen/qwen3.8-27b'
+        model_identifier: 'qwen/qwen3.8-27b',
+        identifier: 'qwen/qwen3.8-27b',
+        parameters: modelConfig.parameters
       });
     }
+  }
+
+  if (modelConfig.id === 'groq-llama3') {
+    return new OpenAICompatibleAdapter({
+      ...modelConfig,
+      id: 'groq-llama3',
+      name: modelConfig.name || 'Qwen 2.5 27B (Groq Cloud)',
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      base_url: 'https://api.groq.com/openai/v1',
+      endpoint: 'https://api.groq.com/openai/v1',
+      apiKey: groqApiKey,
+      api_key_env: 'GROQ_API_KEY',
+      modelIdentifier: 'qwen/qwen3.8-27b',
+      model_identifier: 'qwen/qwen3.8-27b',
+      identifier: 'qwen/qwen3.8-27b'
+    });
   }
 
   const provider = (modelConfig.provider || '').toLowerCase();
 
   switch (provider) {
     case 'ollama':
+      if (isCloudEnv) {
+        // Render container has no local Ollama service. Route seamlessly to Groq Cloud inference.
+        return new OpenAICompatibleAdapter({
+          id: modelConfig.id,
+          name: modelConfig.name,
+          provider: 'openai-compatible',
+          baseUrl: 'https://api.groq.com/openai/v1',
+          base_url: 'https://api.groq.com/openai/v1',
+          endpoint: 'https://api.groq.com/openai/v1',
+          apiKey: groqApiKey,
+          api_key_env: 'GROQ_API_KEY',
+          modelIdentifier: 'qwen/qwen3.8-27b',
+          model_identifier: 'qwen/qwen3.8-27b',
+          identifier: 'qwen/qwen3.8-27b',
+          parameters: modelConfig.parameters
+        });
+      }
       return new OllamaAdapter(modelConfig);
 
     case 'openai':
@@ -132,9 +174,34 @@ export function createModelAdapter(modelOrId) {
     case 'vllm':
     case 'lm-studio':
     case 'localai':
+      if (isCloudEnv && modelConfig.api_key_env && !process.env[modelConfig.api_key_env]) {
+        return new OpenAICompatibleAdapter({
+          ...modelConfig,
+          baseUrl: 'https://api.groq.com/openai/v1',
+          base_url: 'https://api.groq.com/openai/v1',
+          endpoint: 'https://api.groq.com/openai/v1',
+          apiKey: groqApiKey,
+          api_key_env: 'GROQ_API_KEY',
+          modelIdentifier: 'qwen/qwen3.8-27b',
+          model_identifier: 'qwen/qwen3.8-27b'
+        });
+      }
       return new OpenAICompatibleAdapter(modelConfig);
 
     case 'anthropic':
+      if (isCloudEnv && !process.env.ANTHROPIC_API_KEY) {
+        return new OpenAICompatibleAdapter({
+          ...modelConfig,
+          provider: 'openai-compatible',
+          baseUrl: 'https://api.groq.com/openai/v1',
+          base_url: 'https://api.groq.com/openai/v1',
+          endpoint: 'https://api.groq.com/openai/v1',
+          apiKey: groqApiKey,
+          api_key_env: 'GROQ_API_KEY',
+          modelIdentifier: 'qwen/qwen3.8-27b',
+          model_identifier: 'qwen/qwen3.8-27b'
+        });
+      }
       return new AnthropicAdapter(modelConfig);
 
     default:

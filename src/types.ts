@@ -284,6 +284,8 @@ export interface Evaluation {
   models: string[]; // JSON array
   categories: string[]; // JSON array
   total_cases: number;
+  cases_done?: number;
+  cases_errored?: number;
   passed_count: number;
   warning_count: number;
   failed_count: number;

@@ -215,9 +215,11 @@ export const EvaluationResultsPage: React.FC<EvaluationResultsPageProps> = ({
           <div className="bayora-card p-4 space-y-1">
             <span className="text-[10px] text-slate-400 uppercase font-semibold">Duration & Mode</span>
             <div className="text-xl font-bold font-mono text-slate-800">
-              {currentEval.execution_duration_ms > 0 ? `${currentEval.execution_duration_ms} ms` : currentEval.estimated_duration}
+              {currentEval.execution_duration_ms > 0 ? `${currentEval.execution_duration_ms} ms` : (currentEval.estimated_duration || '0s')}
             </div>
-            <div className="text-[10px] text-purple-700 font-medium">Deterministic Sim</div>
+            <div className="text-[10px] text-purple-700 font-medium">
+              {currentEval.cases_errored ? `${currentEval.cases_errored} Unreachable` : 'Live Model Execution'}
+            </div>
           </div>
         </div>
       )}

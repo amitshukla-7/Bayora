@@ -8,8 +8,8 @@ export class OpenAICompatibleAdapter extends BaseModelAdapter {
     super({
       ...config,
       provider: config.provider || 'openai-compatible',
-      baseUrl: (config.baseUrl || config.base_url || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-      modelIdentifier: config.modelIdentifier || config.model_identifier || 'gpt-4o'
+      baseUrl: (config.baseUrl || config.base_url || config.endpoint || 'https://api.openai.com/v1').replace(/\/+$/, ''),
+      modelIdentifier: config.modelIdentifier || config.model_identifier || config.identifier || 'gpt-4o'
     });
   }
 
