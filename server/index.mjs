@@ -98,9 +98,39 @@ reconcileCrashedRuns();
 
 const app = new Hono();
 
-// CORS Middleware
+// Security Headers & CORS Middleware
 app.use('*', async (c, next) => {
-  c.header('Access-Control-Allow-Origin', '*');
+  // Enterprise Security Headers (CWE-693)
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'no-referrer');
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  c.header('Cross-Origin-Opener-Policy', 'same-origin');
+  c.header('Cross-Origin-Resource-Policy', 'same-origin');
+
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+
+  // Content Security Policy
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self' https://api.groq.com https://api.openai.com https://api.anthropic.com",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests"
+  ].join('; ');
+  c.header('Content-Security-Policy', csp);
+
+  // Controlled CORS configuration
+  const origin = c.req.header('origin') || '*';
+  c.header('Access-Control-Allow-Origin', origin);
   c.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Attestation-Ticket');
   if (c.req.method === 'OPTIONS') {
