@@ -27,7 +27,7 @@ describe('Enterprise Authentication & Tenant Isolation Suite', () => {
       });
 
       expect(auth).toBeDefined();
-      expect(auth.token).toMatch(/^byra_sess_[a-f0-9]{64}$/);
+      expect(auth.token).toMatch(/^(bayora|byra)_sess_[a-f0-9]{64}$/);
       expect(auth.user.email).toBe('amitshukla@1234');
       expect(auth.user.name).toBe('Amit Shukla');
       expect(auth.user.role).toBe('Principal Architect');
@@ -92,7 +92,7 @@ describe('Enterprise Authentication & Tenant Isolation Suite', () => {
       expect(reg.user.name).toBe('Sarah Connor');
       expect(reg.user.avatar_initials).toBe('SC');
       expect(reg.user.organization).toBe('Cyberdyne Defense');
-      expect(reg.token).toMatch(/^byra_sess_[a-f0-9]{64}$/);
+      expect(reg.token).toMatch(/^(bayora|byra)_sess_[a-f0-9]{64}$/);
     });
 
     it('prevents duplicate account creation with same email', () => {
@@ -255,6 +255,15 @@ describe('Enterprise Authentication & Tenant Isolation Suite', () => {
       const dataProfile = await resProfile.json();
       expect(dataProfile.name).toBe('Amit Shukla');
       expect(dataProfile.email).toBeDefined();
+    });
+
+    it('verifies that newly generated session tokens use the official bayora_sess prefix (ArgosX Issue 5)', () => {
+      const auth = loginUser({
+        email: 'amitshukla@1234',
+        password: 'amitshukla7'
+      });
+      expect(auth.token.startsWith('bayora_sess_')).toBe(true);
+      expect(auth.token).not.toContain('primar');
     });
   });
 });

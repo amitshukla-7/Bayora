@@ -199,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </span>
           <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 flex items-center gap-1.5 shadow-2xs">
             <Zap className="w-3.5 h-3.5 text-orange-500" />
-            Groq Cloud (Qwen 2.5)
+            Groq Cloud (Alibaba Qwen 2.5 LLM)
           </span>
           <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 flex items-center gap-1.5 shadow-2xs">
             <Layers className="w-3.5 h-3.5 text-blue-500" />

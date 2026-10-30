@@ -35,7 +35,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activeToken = getAuthToken() || 'byra_sess_default_primary_active';
+  const activeToken = getAuthToken() || 'bayora_sess_active_session_token';
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,7 +224,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <div>
               <div className="font-semibold text-slate-800">Operator Session Token</div>
               <div className="font-mono text-[11px] text-slate-400">
-                {activeToken.slice(0, 24)}...
+                {activeToken.length > 24 ? `${activeToken.slice(0, 18)}...${activeToken.slice(-6)}` : activeToken}
               </div>
             </div>
             <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">

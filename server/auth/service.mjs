@@ -29,7 +29,7 @@ export function verifyPassword(password, salt, storedHash) {
 }
 
 export function generateSessionToken() {
-  return `byra_sess_${crypto.randomBytes(32).toString('hex')}`;
+  return `bayora_sess_${crypto.randomBytes(32).toString('hex')}`;
 }
 
 export function createSession(userId, ip = null, userAgent = null) {
@@ -47,7 +47,7 @@ export function createSession(userId, ip = null, userAgent = null) {
 }
 
 export function getUserFromSession(token) {
-  if (!token || typeof token !== 'string' || !token.startsWith('byra_sess_')) {
+  if (!token || typeof token !== 'string' || (!token.startsWith('bayora_sess_') && !token.startsWith('byra_sess_'))) {
     return null;
   }
   const db = getDb();
