@@ -24,6 +24,7 @@ RUN npm ci --omit=dev
 # Copy compiled frontend, server, and workspace
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
+COPY --from=builder /app/src ./src
 COPY --from=builder /app/workspace ./workspace
 COPY --from=builder /app/models.yaml ./models.yaml
 

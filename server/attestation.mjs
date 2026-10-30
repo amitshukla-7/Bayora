@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-import { canonicalJson, sha256Hex } from '../src/core/canonical.ts';
-import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from '../src/core/signing.ts';
+import { canonicalJson, sha256Hex } from './canonical.mjs';
+import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from './signing.mjs';
 import { getAllPolicies, getDb } from './db.mjs';
 
 // Attestation Ticket TTL: 5 minutes (300,000 ms)

@@ -1,5 +1,5 @@
-import { canonicalJson, sha256Hex, GENESIS_HASH } from '../src/core/canonical.ts';
-import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from '../src/core/signing.ts';
+import { canonicalJson, sha256Hex, GENESIS_HASH } from './canonical.mjs';
+import { generateSigningKeyPair, signDataP256, verifySignatureP256 } from './signing.mjs';
 import { getLatestEvent, insertEvent, getAllEvents, getDb, getAuditEvidence } from './db.mjs';
 import { computeCanonicalPolicyFingerprint } from './attestation.mjs';
 

@@ -1,4 +1,4 @@
-import { canonicalJson, sha256Hex } from '../src/core/canonical.ts';
+import { canonicalJson, sha256Hex } from './canonical.mjs';
 import { getAllPolicies, getPolicyById } from './db.mjs';
 import {
   executeReadDocument,
